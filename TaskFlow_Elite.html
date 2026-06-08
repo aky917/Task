@@ -34,7 +34,7 @@ body{
 
 .form{
   display:grid;
-  grid-template-columns:2fr 1fr 1fr 1fr 2fr auto;
+  grid-template-columns:2fr 1fr 1fr 1fr 1fr 2fr auto;
   gap:6px;
 }
 
@@ -59,7 +59,7 @@ button:hover{background:#374151;}
 .primary{background:var(--accent);}
 
 table{width:100%;border-collapse:collapse;}
-td,th{border-bottom:1px solid var(--border);}
+th,td{text-align:left;padding:8px;border-bottom:1px solid var(--border);}
 tr:hover{background:#1f2937;}
 
 .badge{padding:2px 6px;border-radius:10px;font-size:12px;}
@@ -76,6 +76,12 @@ tr:hover{background:#1f2937;}
 #recommendBox{
   border:1px solid var(--accent);
 }
+
+#doneList tr{
+  opacity:0.6;
+}
+
+input[type="range"]{width:90px;}
 </style>
 </head>
 
@@ -95,6 +101,7 @@ tr:hover{background:#1f2937;}
 <input id="name" placeholder="タスク">
 <select id="priority"><option>高</option><option selected>中</option><option>低</option></select>
 <input id="deadline" type="date">
+<input id="estimate" type="number" placeholder="必要日数">
 <input id="progressNum" type="number" value="0">
 <input id="memo" placeholder="メモ">
 <button id="addBtn" class="primary">＋</button>
@@ -111,10 +118,20 @@ tr:hover{background:#1f2937;}
 <!-- テーブル -->
 <div id="tableView" class="card">
 <table>
-<thead><tr>
-<th>タスク</th><th>優先</th><th>期限</th><th>進捗</th><th></th>
-</tr></thead>
+<thead>
+<tr>
+<th>タスク</th><th>優先</th><th>期限</th><th>進捗</th><th>⚠️</th><th>🔥</th><th>メモ</th><th></th>
+</tr>
+</thead>
 <tbody id="tbody"></tbody>
+</table>
+</div>
+
+<!-- 完了 -->
+<div class="card">
+<h3>✅ 完了タスク</h3>
+<table>
+<tbody id="doneList"></tbody>
 </table>
 </div>
 
@@ -169,6 +186,7 @@ $("addBtn").onclick=()=>{
     name:$("name").value,
     priority:$("priority").value,
     deadline:$("deadline").value,
+    estimate:+$("estimate").value||1,
     progress:p,
     memo:$("memo").value,
     created:new Date().toISOString(),
@@ -180,6 +198,17 @@ $("addBtn").onclick=()=>{
   toast("追加");
 };
 
+/* 進捗更新 */
+function updateProgress(id,val){
+  let t=tasks.find(x=>x.id==id);
+  let p=Math.max(0,Math.min(100,+val||0));
+
+  t.progress=p;
+  t.status=(p==0?'未着手':p==100?'完了':'進行中');
+
+  save();
+}
+
 /* AI整理 */
 $("aiBtn").onclick=()=>{
   tasks.forEach(t=>{
@@ -188,35 +217,39 @@ $("aiBtn").onclick=()=>{
       t.priority=diff<1?'高':diff<3?'中':'低';
     }
   });
-
-  tasks.sort((a,b)=>(a.deadline||'9999').localeCompare(b.deadline||'9999'));
-
   save();
   toast("AI整理");
 };
 
-/* おすすめ */
+/* 危険判定 */
+function isRisk(t){
+  if(!t.deadline||!t.estimate)return false;
+  let diff=(new Date(t.deadline)-new Date())/(1000*60*60*24);
+  return t.estimate>diff;
+}
+
+/* スコア */
 function score(t){
   let s=0;
   if(t.progress<100)s+=50;
   if(t.deadline){
     let d=(new Date(t.deadline)-new Date())/(1000*60*60*24);
     s+=(10-d);
+    if(t.estimate)s+=(t.estimate-d)*5;
   }
   if(t.priority=='高')s+=20;
   return s;
 }
 
+/* おすすめ */
 function recommend(){
   let active=tasks.filter(t=>t.progress<100);
   if(!active.length){$("recommend").innerText="🎉 完了";return;}
-
   let best=active.sort((a,b)=>score(b)-score(a))[0];
 
-  $("recommend").innerHTML=`
-    <b>${best.name}</b><br>
-    期限:${best.deadline||'-'} / 優先:${best.priority} / ${best.progress}%
-  `;
+  $("recommend").innerHTML=
+`<b>${best.name}</b><br>
+期限:${best.deadline||'-'} / 優先:${best.priority} / ${best.progress}%`;
 }
 
 /* render */
@@ -226,6 +259,7 @@ function render(){
   let arr=tasks.filter(t=>t.name.toLowerCase().includes(q));
 
   $("tbody").innerHTML='';
+  $("doneList").innerHTML='';
   $("todo").innerHTML='';
   $("doing").innerHTML='';
   $("done").innerHTML='';
@@ -233,17 +267,26 @@ function render(){
   let today=new Date().toISOString().split('T')[0];
 
   arr.forEach(t=>{
-    let overdue=t.deadline && t.deadline<today && t.progress<100;
+    let overdue=t.deadline&&t.deadline<today&&t.progress<100;
 
-    $("tbody").innerHTML+=`
+    let row=`
 <tr style="${overdue?'background:#3f1d1d':''}">
 <td contenteditable onblur="edit(${t.id},this.innerText)">${t.name}</td>
 <td><span class="badge ${t.priority}">${t.priority}</span></td>
 <td>${t.deadline||''}</td>
-<td>${t.progress}%</td>
+<td>
+<input type="range" min="0" max="100" value="${t.progress}" oninput="updateProgress(${t.id},this.value)">
+<input type="number" value="${t.progress}" style="width:50px" oninput="updateProgress(${t.id},this.value)">%
+</td>
+<td>${overdue?'⚠️':''}</td>
+<td>${isRisk(t)?'🔥':''}</td>
+<td style="font-size:12px;color:#9ca3af;">${t.memo||''}</td>
 <td><button onclick="del(${t.id})">🗑</button></td>
 </tr>
 `;
+
+    if(t.progress==100) $("doneList").innerHTML+=row;
+    else $("tbody").innerHTML+=row;
 
     let c=document.createElement('div');
     c.className='task';
@@ -279,7 +322,6 @@ function drop(e,status){
   t.status=status;
   t.progress=status=='完了'?100:status=='未着手'?0:50;
   save();
-  toast("移動");
 }
 
 /* view */
@@ -294,9 +336,8 @@ $("tableBtn").onclick=()=>{
 
 $("search").oninput=render;
 
-/* Enter */
 document.addEventListener("keydown",e=>{
-  if(e.key==="Enter" && e.target.tagName!=="TEXTAREA"){
+  if(e.key==="Enter"&&e.target.tagName!=="TEXTAREA"){
     e.preventDefault();
     $("addBtn").click();
   }
@@ -308,3 +349,4 @@ recommend();
 
 </body>
 </html>
+``
