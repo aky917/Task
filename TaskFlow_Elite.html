@@ -1,10 +1,8 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TaskFlow Pro</title>
+<title>TaskFlow AI Pro</title>
 
 <style>
 :root{
@@ -12,7 +10,6 @@
 --panel:#111827;
 --border:#1f2937;
 --text:#e5e7eb;
---muted:#9ca3af;
 --accent:#2563eb;
 --danger:#dc2626;
 --success:#16a34a;
@@ -20,7 +17,7 @@
 
 body{
   margin:0;
-  font-family:Segoe UI,system-ui;
+  font-family:Segoe UI;
   background:var(--bg);
   color:var(--text);
 }
@@ -30,248 +27,262 @@ body{
 .card{
   background:var(--panel);
   border:1px solid var(--border);
-  border-radius:12px;
-  padding:14px;
-  margin-bottom:12px;
+  border-radius:10px;
+  padding:12px;
+  margin-bottom:10px;
 }
 
-/* フォーム */
 .form{
   display:grid;
-  grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr 2fr auto;
-  gap:8px;
+  grid-template-columns:2fr 1fr 1fr 1fr 2fr auto;
+  gap:6px;
 }
 
-input,select,textarea{
+input,select{
   background:#0b1220;
   border:1px solid var(--border);
-  color:var(--text);
-  padding:8px;
-  border-radius:8px;
+  color:white;
+  padding:6px;
+  border-radius:6px;
 }
 
-textarea{height:34px;resize:none;}
-
 button{
-  border:none;
   background:#1f2937;
-  padding:8px 10px;
-  border-radius:8px;
+  color:white;
+  border:none;
+  padding:6px;
+  border-radius:6px;
   cursor:pointer;
 }
 
 button:hover{background:#374151;}
+.primary{background:var(--accent);}
 
-.primary{background:var(--accent);font-weight:bold;}
-
-/* テーブル */
-table{width:100%;border-collapse:collapse;font-size:14px;}
-th{color:var(--muted);text-align:left;border-bottom:1px solid var(--border);}
-td{border-bottom:1px solid var(--border);}
+table{width:100%;border-collapse:collapse;}
+td,th{border-bottom:1px solid var(--border);}
 tr:hover{background:#1f2937;}
 
-.badge{padding:3px 8px;border-radius:999px;font-size:12px;}
+.badge{padding:2px 6px;border-radius:10px;font-size:12px;}
 .高{background:var(--danger);}
 .中{background:#d97706;}
 .低{background:var(--success);}
 
-.progress{height:6px;background:#374151;border-radius:99px;}
+.progress{height:6px;background:#374151;border-radius:10px;}
 .fill{height:100%;background:var(--accent);}
 
-/* カンバン */
-.kanban{display:none;grid-template-columns:repeat(3,1fr);gap:10px;}
-.col{padding:10px;min-height:200px;}
-.task{background:#1f2937;padding:6px;margin:5px 0;border-radius:8px;}
+.kanban{display:none;grid-template-columns:repeat(3,1fr);gap:8px;}
+.task{background:#1f2937;margin:4px;padding:5px;border-radius:6px;}
+
+#recommendBox{
+  border:1px solid var(--accent);
+}
 </style>
 </head>
 
 <body>
-
 <div class="wrap">
 
-<h2>📋 TaskFlow Pro</h2>
+<h2>🤖 TaskFlow AI Pro</h2>
+
+<!-- おすすめ -->
+<div class="card" id="recommendBox">
+<b>🔥 今やるべきタスク</b>
+<div id="recommend">なし</div>
+</div>
 
 <!-- 入力 -->
 <div class="card form">
-<input id="name" placeholder="タスク名">
-<select id="priority">
-<option>高</option><option selected>中</option><option>低</option>
-</select>
+<input id="name" placeholder="タスク">
+<select id="priority"><option>高</option><option selected>中</option><option>低</option></select>
 <input id="deadline" type="date">
-<input id="estimate" type="number" placeholder="予想">
-<input id="actual" type="number" placeholder="実績">
-<input id="progressNum" type="number" min="0" max="100" value="0">
-<textarea id="memo" placeholder="メモ"></textarea>
-<button type="button" class="primary" id="addBtn">＋</button>
+<input id="progressNum" type="number" value="0">
+<input id="memo" placeholder="メモ">
+<button id="addBtn" class="primary">＋</button>
 </div>
 
-<!-- フィルター -->
+<!-- 操作 -->
 <div class="card">
 <input id="search" placeholder="検索">
-
-<select id="filterPriority">
-<option value="">全優先度</option>
-<option>高</option><option>中</option><option>低</option>
-</select>
-
-<select id="sort">
-<option value="deadline">期限</option>
-<option value="priority">優先度</option>
-<option value="progress">進捗</option>
-</select>
-
+<button id="aiBtn">🤖整理</button>
 <button id="tableBtn">一覧</button>
 <button id="kanbanBtn">カンバン</button>
-<button id="csvBtn">CSV</button>
-<input type="file" id="fileInput">
 </div>
 
 <!-- テーブル -->
 <div id="tableView" class="card">
 <table>
-<thead>
-<tr>
+<thead><tr>
 <th>タスク</th><th>優先</th><th>期限</th><th>進捗</th><th></th>
-</tr>
-</thead>
+</tr></thead>
 <tbody id="tbody"></tbody>
 </table>
 </div>
 
 <!-- カンバン -->
 <div id="kanbanView" class="kanban">
-<div class="card col"><h4>未着手</h4><div id="todo"></div></div>
-<div class="card col"><h4>進行中</h4><div id="doing"></div></div>
-<div class="card col"><h4>完了</h4><div id="done"></div></div>
+<div class="card" ondrop="drop(event,'未着手')" ondragover="allowDrop(event)">
+<h4>未着手</h4><div id="todo"></div></div>
+
+<div class="card" ondrop="drop(event,'進行中')" ondragover="allowDrop(event)">
+<h4>進行中</h4><div id="doing"></div></div>
+
+<div class="card" ondrop="drop(event,'完了')" ondragover="allowDrop(event)">
+<h4>完了</h4><div id="done"></div></div>
 </div>
 
 </div>
 
 <script>
-const $ = id => document.getElementById(id);
+const $=id=>document.getElementById(id);
 
-let tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+let tasks=JSON.parse(localStorage.getItem('tasks')||'[]');
 
 function save(){
   localStorage.setItem('tasks',JSON.stringify(tasks));
   render();
+  recommend();
+}
+
+/* トースト */
+function toast(msg){
+  let t=document.createElement("div");
+  t.textContent=msg;
+  t.style.position="fixed";
+  t.style.bottom="20px";
+  t.style.right="20px";
+  t.style.background="#2563eb";
+  t.style.padding="10px";
+  t.style.color="white";
+  t.style.borderRadius="8px";
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(),1500);
 }
 
 /* 追加 */
-$("addBtn").onclick = () => {
-  const name = $("name").value.trim();
-  if(!name){ alert("タスク名必須"); return; }
+$("addBtn").onclick=()=>{
+  if(!$("name").value.trim()) return alert("名前必須");
 
-  let p = +$("progressNum").value || 0;
+  let p=+$("progressNum").value||0;
 
   tasks.push({
     id:Date.now(),
-    name,
+    name:$("name").value,
     priority:$("priority").value,
     deadline:$("deadline").value,
     progress:p,
     memo:$("memo").value,
+    created:new Date().toISOString(),
     status:p==0?'未着手':p==100?'完了':'進行中'
   });
 
   $("name").value='';
-  $("deadline").value='';
-  $("progressNum").value=0;
-  $("memo").value='';
-
   save();
+  toast("追加");
 };
 
-/* 削除 */
-function del(id){
-  tasks = tasks.filter(t=>t.id!=id);
-  save();
-}
-
-/* 編集 */
-function edit(id,val){
-  let t = tasks.find(x=>x.id==id);
-  t.name = val;
-  save();
-}
-
-/* 描画 */
-function render(){
-
-  let q = $("search").value.toLowerCase();
-  let f = $("filterPriority").value;
-  let s = $("sort").value;
-
-  let arr = tasks.filter(t => t.name.toLowerCase().includes(q));
-  if(f) arr = arr.filter(t => t.priority==f);
-
-  arr.sort((a,b)=>{
-    if(s=='deadline') return (a.deadline||'9999').localeCompare(b.deadline||'9999');
-    if(s=='progress') return b.progress-a.progress;
-    if(s=='priority') return ['高','中','低'].indexOf(a.priority)-['高','中','低'].indexOf(b.priority);
+/* AI整理 */
+$("aiBtn").onclick=()=>{
+  tasks.forEach(t=>{
+    if(t.deadline){
+      let diff=(new Date(t.deadline)-new Date())/(1000*60*60*24);
+      t.priority=diff<1?'高':diff<3?'中':'低';
+    }
   });
 
-  $("tbody").innerHTML="";
-  $("todo").innerHTML="";
-  $("doing").innerHTML="";
-  $("done").innerHTML="";
+  tasks.sort((a,b)=>(a.deadline||'9999').localeCompare(b.deadline||'9999'));
+
+  save();
+  toast("AI整理");
+};
+
+/* おすすめ */
+function score(t){
+  let s=0;
+  if(t.progress<100)s+=50;
+  if(t.deadline){
+    let d=(new Date(t.deadline)-new Date())/(1000*60*60*24);
+    s+=(10-d);
+  }
+  if(t.priority=='高')s+=20;
+  return s;
+}
+
+function recommend(){
+  let active=tasks.filter(t=>t.progress<100);
+  if(!active.length){$("recommend").innerText="🎉 完了";return;}
+
+  let best=active.sort((a,b)=>score(b)-score(a))[0];
+
+  $("recommend").innerHTML=`
+    <b>${best.name}</b><br>
+    期限:${best.deadline||'-'} / 優先:${best.priority} / ${best.progress}%
+  `;
+}
+
+/* render */
+function render(){
+  let q=$("search").value.toLowerCase();
+
+  let arr=tasks.filter(t=>t.name.toLowerCase().includes(q));
+
+  $("tbody").innerHTML='';
+  $("todo").innerHTML='';
+  $("doing").innerHTML='';
+  $("done").innerHTML='';
+
+  let today=new Date().toISOString().split('T')[0];
 
   arr.forEach(t=>{
+    let overdue=t.deadline && t.deadline<today && t.progress<100;
 
-    $("tbody").innerHTML += `
-      <tr>
-        <td contenteditable onblur="edit(${t.id},this.innerText)">${t.name}</td>
-        <td><span class="badge ${t.priority}">${t.priority}</span></td>
-        <td>${t.deadline||''}</td>
-        <td>
-          <div class="progress"><div class="fill" style="width:${t.progress}%"></div></div>
-          ${t.progress}%
-        </td>
-        <td><button onclick="del(${t.id})">🗑</button></td>
-      </tr>
-    `;
+    $("tbody").innerHTML+=`
+<tr style="${overdue?'background:#3f1d1d':''}">
+<td contenteditable onblur="edit(${t.id},this.innerText)">${t.name}</td>
+<td><span class="badge ${t.priority}">${t.priority}</span></td>
+<td>${t.deadline||''}</td>
+<td>${t.progress}%</td>
+<td><button onclick="del(${t.id})">🗑</button></td>
+</tr>
+`;
 
-    let c = document.createElement("div");
-    c.className="task";
-    c.textContent = t.name + " ("+t.progress+"%)";
+    let c=document.createElement('div');
+    c.className='task';
+    c.textContent=t.name;
+    c.draggable=true;
+    c.ondragstart=e=>e.dataTransfer.setData("id",t.id);
 
-    let col = t.status=='未着手'?'todo':t.status=='進行中'?'doing':'done';
+    let col=t.status=='未着手'?'todo':t.status=='進行中'?'doing':'done';
     $(col).appendChild(c);
   });
 }
 
-/* CSV */
-$("csvBtn").onclick = ()=>{
-  let r=['name,priority,deadline,progress'];
-  tasks.forEach(t=>r.push([t.name,t.priority,t.deadline,t.progress].join(',')));
-  let a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([r.join('\n')]));
-  a.download='tasks.csv';
-  a.click();
-};
+/* 編集 */
+function edit(id,val){
+  let t=tasks.find(x=>x.id==id);
+  t.name=val;
+  save();
+}
 
-$("fileInput").onchange = e=>{
-  let f=e.target.files[0];
-  let rd=new FileReader();
-  rd.onload=x=>{
-    x.target.result.split('\n').slice(1).forEach(l=>{
-      let c=l.split(',');
-      if(!c[0]) return;
-      tasks.push({
-        id:Date.now()+Math.random(),
-        name:c[0],
-        priority:c[1],
-        deadline:c[2],
-        progress:+c[3],
-        status:'未着手'
-      });
-    });
-    save();
-  };
-  rd.readAsText(f);
-};
+/* 削除 */
+function del(id){
+  tasks=tasks.filter(t=>t.id!=id);
+  save();
+  toast("削除");
+}
 
-/* view切替 */
+/* DnD */
+function allowDrop(e){e.preventDefault();}
+function drop(e,status){
+  e.preventDefault();
+  let id=+e.dataTransfer.getData("id");
+  let t=tasks.find(x=>x.id==id);
+  t.status=status;
+  t.progress=status=='完了'?100:status=='未着手'?0:50;
+  save();
+  toast("移動");
+}
+
+/* view */
 $("kanbanBtn").onclick=()=>{
   $("kanbanView").style.display='grid';
   $("tableView").style.display='none';
@@ -281,20 +292,18 @@ $("tableBtn").onclick=()=>{
   $("tableView").style.display='block';
 };
 
-/* 入力イベント */
-["search","filterPriority","sort"].forEach(id=>{
-  $(id).oninput = render;
-});
+$("search").oninput=render;
 
-/* Enter追加（安全） */
+/* Enter */
 document.addEventListener("keydown",e=>{
-  if(e.key==="Enter" && e.target.tagName !== "TEXTAREA"){
+  if(e.key==="Enter" && e.target.tagName!=="TEXTAREA"){
     e.preventDefault();
     $("addBtn").click();
   }
 });
 
 render();
+recommend();
 </script>
 
 </body>
