@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -24,17 +25,13 @@ body{
   color:var(--text);
 }
 
-.wrap{
-  max-width:1200px;
-  margin:auto;
-  padding:20px;
-}
+.wrap{max-width:1200px;margin:auto;padding:20px;}
 
-.glass{
+.card{
   background:var(--panel);
   border:1px solid var(--border);
   border-radius:12px;
-  padding:16px;
+  padding:14px;
   margin-bottom:12px;
 }
 
@@ -58,17 +55,14 @@ textarea{height:34px;resize:none;}
 button{
   border:none;
   background:#1f2937;
-  padding:8px;
+  padding:8px 10px;
   border-radius:8px;
   cursor:pointer;
 }
 
 button:hover{background:#374151;}
 
-.primary{
-  background:var(--accent);
-  font-weight:bold;
-}
+.primary{background:var(--accent);font-weight:bold;}
 
 /* テーブル */
 table{width:100%;border-collapse:collapse;font-size:14px;}
@@ -76,11 +70,7 @@ th{color:var(--muted);text-align:left;border-bottom:1px solid var(--border);}
 td{border-bottom:1px solid var(--border);}
 tr:hover{background:#1f2937;}
 
-.badge{
-  padding:3px 8px;
-  border-radius:999px;
-  font-size:12px;
-}
+.badge{padding:3px 8px;border-radius:999px;font-size:12px;}
 .高{background:var(--danger);}
 .中{background:#d97706;}
 .低{background:var(--success);}
@@ -89,51 +79,55 @@ tr:hover{background:#1f2937;}
 .fill{height:100%;background:var(--accent);}
 
 /* カンバン */
-.kanban{display:none;grid-template-columns:repeat(3,1fr);gap:12px;}
-.col{padding:10px;min-height:300px;}
-.task{padding:8px;margin:6px 0;background:#1f2937;border-radius:8px;}
-
-.editable{cursor:pointer;}
+.kanban{display:none;grid-template-columns:repeat(3,1fr);gap:10px;}
+.col{padding:10px;min-height:200px;}
+.task{background:#1f2937;padding:6px;margin:5px 0;border-radius:8px;}
 </style>
-
 </head>
+
 <body>
 
 <div class="wrap">
 
-<h2>TaskFlow Pro</h2>
+<h2>📋 TaskFlow Pro</h2>
 
-<div class="glass form">
+<!-- 入力 -->
+<div class="card form">
 <input id="name" placeholder="タスク名">
-<select id="priority"><option>高</option><option selected>中</option><option>低</option></select>
+<select id="priority">
+<option>高</option><option selected>中</option><option>低</option>
+</select>
 <input id="deadline" type="date">
 <input id="estimate" type="number" placeholder="予想">
 <input id="actual" type="number" placeholder="実績">
 <input id="progressNum" type="number" min="0" max="100" value="0">
 <textarea id="memo" placeholder="メモ"></textarea>
-<button type="button" class="primary" onclick="addTask()">＋</button>
+<button type="button" class="primary" id="addBtn">＋</button>
 </div>
 
-<div class="glass">
-<input id="search" placeholder="検索" oninput="render()">
-<select id="filterPriority" onchange="render()">
+<!-- フィルター -->
+<div class="card">
+<input id="search" placeholder="検索">
+
+<select id="filterPriority">
 <option value="">全優先度</option>
 <option>高</option><option>中</option><option>低</option>
 </select>
 
-<select id="sort" onchange="render()">
+<select id="sort">
 <option value="deadline">期限</option>
 <option value="priority">優先度</option>
 <option value="progress">進捗</option>
 </select>
 
-<button onclick="viewTable()">一覧</button>
-<button onclick="viewKanban()">カンバン</button>
-<button onclick="exportCSV()">CSV</button>
-<input type="file" onchange="importCSV(event)">
+<button id="tableBtn">一覧</button>
+<button id="kanbanBtn">カンバン</button>
+<button id="csvBtn">CSV</button>
+<input type="file" id="fileInput">
 </div>
 
-<div id="tableView" class="glass">
+<!-- テーブル -->
+<div id="tableView" class="card">
 <table>
 <thead>
 <tr>
@@ -144,134 +138,160 @@ tr:hover{background:#1f2937;}
 </table>
 </div>
 
+<!-- カンバン -->
 <div id="kanbanView" class="kanban">
-<div class="glass col"><h3>未着手</h3><div id="todo"></div></div>
-<div class="glass col"><h3>進行中</h3><div id="doing"></div></div>
-<div class="glass col"><h3>完了</h3><div id="done"></div></div>
+<div class="card col"><h4>未着手</h4><div id="todo"></div></div>
+<div class="card col"><h4>進行中</h4><div id="doing"></div></div>
+<div class="card col"><h4>完了</h4><div id="done"></div></div>
 </div>
 
 </div>
 
 <script>
-let tasks=JSON.parse(localStorage.getItem('tasks')||'[]');
+const $ = id => document.getElementById(id);
 
-function save(){localStorage.setItem('tasks',JSON.stringify(tasks));render();}
+let tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
 
-function addTask(){
-if(!name.value.trim()){alert("タスク名必須");return;}
-
-let p=+progressNum.value||0;
-
-tasks.push({
-id:Date.now(),
-name:name.value,
-priority:priority.value,
-deadline:deadline.value,
-progress:p,
-memo:memo.value,
-status:p==0?'未着手':p==100?'完了':'進行中'
-});
-
-name.value='';deadline.value='';progressNum.value=0;memo.value='';
-save();
+function save(){
+  localStorage.setItem('tasks',JSON.stringify(tasks));
+  render();
 }
 
-/* 編集 */
-function edit(id,key,value){
-let t=tasks.find(x=>x.id==id);
-t[key]=value;
-save();
-}
+/* 追加 */
+$("addBtn").onclick = () => {
+  const name = $("name").value.trim();
+  if(!name){ alert("タスク名必須"); return; }
 
-/* render */
-function render(){
-let q=search.value.toLowerCase();
-let f=filterPriority.value;
+  let p = +$("progressNum").value || 0;
 
-let arr=tasks.filter(t=>t.name.toLowerCase().includes(q));
-if(f)arr=arr.filter(t=>t.priority==f);
+  tasks.push({
+    id:Date.now(),
+    name,
+    priority:$("priority").value,
+    deadline:$("deadline").value,
+    progress:p,
+    memo:$("memo").value,
+    status:p==0?'未着手':p==100?'完了':'進行中'
+  });
 
-/* 並び替え */
-let s=sort.value;
-arr.sort((a,b)=>{
-if(s=='deadline') return (a.deadline||'9999').localeCompare(b.deadline||'9999');
-if(s=='progress') return b.progress-a.progress;
-if(s=='priority') return ['高','中','低'].indexOf(a.priority)-['高','中','低'].indexOf(b.priority);
-});
+  $("name").value='';
+  $("deadline").value='';
+  $("progressNum").value=0;
+  $("memo").value='';
 
-tbody.innerHTML='';todo.innerHTML='';doing.innerHTML='';done.innerHTML='';
-
-arr.forEach(t=>{
-
-tbody.innerHTML+=`
-<tr>
-<td contenteditable class="editable" onblur="edit(${t.id},'name',this.innerText)">${t.name}</td>
-<td>${t.priority}</td>
-<td>${t.deadline||''}</td>
-<td>
-<div class="progress"><div class="fill" style="width:${t.progress}%"></div></div>
-${t.progress}%
-</td>
-<td><button onclick="del(${t.id})">🗑</button></td>
-</tr>
-`;
-
-/* カンバン */
-let c=document.createElement('div');
-c.className='task';
-c.textContent=t.name+" "+t.progress+"%";
-document.getElementById(
-t.status=='未着手'?'todo':
-t.status=='進行中'?'doing':'done'
-).appendChild(c);
-
-});
-
-}
+  save();
+};
 
 /* 削除 */
 function del(id){
-tasks=tasks.filter(t=>t.id!=id);
-save();
+  tasks = tasks.filter(t=>t.id!=id);
+  save();
+}
+
+/* 編集 */
+function edit(id,val){
+  let t = tasks.find(x=>x.id==id);
+  t.name = val;
+  save();
+}
+
+/* 描画 */
+function render(){
+
+  let q = $("search").value.toLowerCase();
+  let f = $("filterPriority").value;
+  let s = $("sort").value;
+
+  let arr = tasks.filter(t => t.name.toLowerCase().includes(q));
+  if(f) arr = arr.filter(t => t.priority==f);
+
+  arr.sort((a,b)=>{
+    if(s=='deadline') return (a.deadline||'9999').localeCompare(b.deadline||'9999');
+    if(s=='progress') return b.progress-a.progress;
+    if(s=='priority') return ['高','中','低'].indexOf(a.priority)-['高','中','低'].indexOf(b.priority);
+  });
+
+  $("tbody").innerHTML="";
+  $("todo").innerHTML="";
+  $("doing").innerHTML="";
+  $("done").innerHTML="";
+
+  arr.forEach(t=>{
+
+    $("tbody").innerHTML += `
+      <tr>
+        <td contenteditable onblur="edit(${t.id},this.innerText)">${t.name}</td>
+        <td><span class="badge ${t.priority}">${t.priority}</span></td>
+        <td>${t.deadline||''}</td>
+        <td>
+          <div class="progress"><div class="fill" style="width:${t.progress}%"></div></div>
+          ${t.progress}%
+        </td>
+        <td><button onclick="del(${t.id})">🗑</button></td>
+      </tr>
+    `;
+
+    let c = document.createElement("div");
+    c.className="task";
+    c.textContent = t.name + " ("+t.progress+"%)";
+
+    let col = t.status=='未着手'?'todo':t.status=='進行中'?'doing':'done';
+    $(col).appendChild(c);
+  });
 }
 
 /* CSV */
-function exportCSV(){
-let r=['name,priority,deadline,progress'];
-tasks.forEach(t=>r.push([t.name,t.priority,t.deadline,t.progress].join(',')));
-let a=document.createElement('a');
-a.href=URL.createObjectURL(new Blob([r.join('\n')]));
-a.download='tasks.csv';
-a.click();
-}
-
-function importCSV(e){
-let f=e.target.files[0];
-let rd=new FileReader();
-rd.onload=x=>{
-x.target.result.split('\n').slice(1).forEach(l=>{
-let c=l.split(',');
-tasks.push({
-id:Date.now()+Math.random(),
-name:c[0],
-priority:c[1],
-deadline:c[2],
-progress:+c[3],
-status:'未着手'
-});
-});
-save();
+$("csvBtn").onclick = ()=>{
+  let r=['name,priority,deadline,progress'];
+  tasks.forEach(t=>r.push([t.name,t.priority,t.deadline,t.progress].join(',')));
+  let a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([r.join('\n')]));
+  a.download='tasks.csv';
+  a.click();
 };
-rd.readAsText(f);
-}
 
-/* view */
-function viewKanban(){kanbanView.style.display='grid';tableView.style.display='none';}
-function viewTable(){kanbanView.style.display='none';tableView.style.display='block';}
+$("fileInput").onchange = e=>{
+  let f=e.target.files[0];
+  let rd=new FileReader();
+  rd.onload=x=>{
+    x.target.result.split('\n').slice(1).forEach(l=>{
+      let c=l.split(',');
+      if(!c[0]) return;
+      tasks.push({
+        id:Date.now()+Math.random(),
+        name:c[0],
+        priority:c[1],
+        deadline:c[2],
+        progress:+c[3],
+        status:'未着手'
+      });
+    });
+    save();
+  };
+  rd.readAsText(f);
+};
 
-/* Enter追加 */
-document.addEventListener('keydown',e=>{
-if(e.key==='Enter') addTask();
+/* view切替 */
+$("kanbanBtn").onclick=()=>{
+  $("kanbanView").style.display='grid';
+  $("tableView").style.display='none';
+};
+$("tableBtn").onclick=()=>{
+  $("kanbanView").style.display='none';
+  $("tableView").style.display='block';
+};
+
+/* 入力イベント */
+["search","filterPriority","sort"].forEach(id=>{
+  $(id).oninput = render;
+});
+
+/* Enter追加（安全） */
+document.addEventListener("keydown",e=>{
+  if(e.key==="Enter" && e.target.tagName !== "TEXTAREA"){
+    e.preventDefault();
+    $("addBtn").click();
+  }
 });
 
 render();
