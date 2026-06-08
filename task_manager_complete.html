@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>タスク管理</title>
+<style>
+body{font-family:sans-serif;margin:0;background:#f4f4f4}
+body.dark{background:#1e1e1e;color:#eee}
+.wrap{max-width:1400px;margin:auto;padding:16px}
+.card{background:#fff;padding:12px;border-radius:10px;margin:8px 0}
+.dark .card{background:#2b2b2b}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+input,select,textarea,button{padding:8px;margin:4px}
+table{width:100%;border-collapse:collapse} th,td{border-bottom:1px solid #ccc;padding:8px}
+.kanban{display:none;grid-template-columns:repeat(3,1fr);gap:12px}
+.col{background:#ddd;padding:10px;border-radius:10px;min-height:300px}
+.task{background:#fff;padding:8px;margin:6px 0;border-radius:8px;cursor:move}
+.dark .task{background:#3a3a3a}
+.overdue{animation:blink 1s infinite}
+@keyframes blink{50%{background:#ffb3b3}}
+.hidden{display:none}
+</style></head><body>
+<div class="wrap">
+<h2>仕事タスク管理</h2>
+<button onclick="toggleDark()">ダークモード</button>
+<button onclick="showTable()">一覧</button>
+<button onclick="showKanban()">カンバン</button>
+<button onclick="exportCSV()">CSV出力</button>
+<input type="file" accept=".csv" onchange="importCSV(event)">
+
+<div class="grid card">
+<div>総数:<span id=t0></span></div><div>完了:<span id=t1></span></div>
+<div>完了率:<span id=t2></span></div><div>本日期限:<span id=t3></span></div>
+<div>高:<span id=t4></span></div><div>中:<span id=t5></span></div><div>低:<span id=t6></span></div>
+</div>
+
+<div class="card">
+<input id=name placeholder="タスク名">
+<select id=priority><option>高</option><option selected>中</option><option>低</option></select>
+<input id=deadline type=date>
+<input id=estimate type=number placeholder="予想日数">
+<input id=actual type=number placeholder="実績日数">
+<input id=progress type=number min=0 max=100 value=0 placeholder="進捗">
+<textarea id=memo placeholder="メモ"></textarea>
+<button onclick="addTask()">追加</button>
+</div>
+
+<div class="card">
+<input id=search placeholder="検索" oninput="render()">
+<label><input type=checkbox id=hideDone onchange="render()">完了を隠す</label>
+</div>
+
+<div id=tableView class="card"><table><thead><tr><th>タスク</th><th>優先</th><th>期限</th><th>予想</th><th>実績</th><th>進捗</th><th>メモ</th><th>削除</th></tr></thead><tbody id=tb></tbody></table></div>
+
+<div id=kanbanView class="kanban">
+<div class="col" ondragover="event.preventDefault()" ondrop="dropStatus(event,'未着手')"><h3>未着手</h3><div id=todo></div></div>
+<div class="col" ondragover="event.preventDefault()" ondrop="dropStatus(event,'進行中')"><h3>進行中</h3><div id=doing></div></div>
+<div class="col" ondragover="event.preventDefault()" ondrop="dropStatus(event,'完了')"><h3>完了</h3><div id=done></div></div>
+</div>
+</div>
+<script>
+let tasks=JSON.parse(localStorage.getItem("tasks")||"[]");
+function save(){localStorage.setItem("tasks",JSON.stringify(tasks));render();}
+function addTask(){
+let p=+progress.value;
+tasks.push({id:Date.now(),name:name.value,priority:priority.value,deadline:deadline.value,estimate:estimate.value,actual:actual.value,progress:p,memo:memo.value,status:p==0?'未着手':p==100?'完了':'進行中'});
+save();
+}
+function del(id){tasks=tasks.filter(x=>x.id!=id);save();}
+function render(){
+let today=new Date().toISOString().split('T')[0];
+tasks.sort((a,b)=>(a.deadline||'9999').localeCompare(b.deadline||'9999'));
+let q=(search.value||'').toLowerCase();
+let list=tasks.filter(t=>t.name.toLowerCase().includes(q));
+if(hideDone.checked) list=list.filter(t=>t.progress<100);
+
+tb.innerHTML='';
+todo.innerHTML=doing.innerHTML=done.innerHTML='';
+
+for(let t of list){
+let cls=(t.priority=='高'&&t.progress<100&&t.deadline&&t.deadline<today)?'overdue':'';
+tb.innerHTML+=`<tr class="${cls}"><td>${t.name}</td><td>${t.priority}</td><td>${t.deadline||''}</td><td>${t.estimate||''}</td><td>${t.actual||''}</td><td>${t.progress}%</td><td>${t.memo||''}</td><td><button onclick="del(${t.id})">削除</button></td></tr>`;
+
+let card=document.createElement('div');
+card.className='task'; card.draggable=true;
+card.ondragstart=e=>e.dataTransfer.setData('id',t.id);
+card.innerHTML=`<b>${t.name}</b><br>${t.priority} | ${t.deadline||''}<br>${t.progress}%`;
+(document.getElementById(t.status=='未着手'?'todo':t.status=='進行中'?'doing':'done')).appendChild(card);
+}
+let doneCount=tasks.filter(t=>t.progress==100).length;
+t0.textContent=tasks.length;
+t1.textContent=doneCount;
+t2.textContent=(tasks.length?Math.round(doneCount/tasks.length*100):0)+'%';
+t3.textContent=tasks.filter(t=>t.deadline==today&&t.progress<100).length;
+t4.textContent=tasks.filter(t=>t.priority=='高').length;
+t5.textContent=tasks.filter(t=>t.priority=='中').length;
+t6.textContent=tasks.filter(t=>t.priority=='低').length;
+}
+function dropStatus(e,s){
+let id=+e.dataTransfer.getData('id');
+let t=tasks.find(x=>x.id==id);
+t.status=s;
+t.progress=s=='未着手'?0:s=='完了'?100:Math.max(1,Math.min(99,t.progress||50));
+save();
+}
+function exportCSV(){
+let rows=["name,priority,deadline,estimate,actual,progress,memo"];
+tasks.forEach(t=>rows.push([t.name,t.priority,t.deadline,t.estimate,t.actual,t.progress,(t.memo||'').replace(/,/g,' ')].join(',')));
+let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.join('\n')]));a.download='tasks.csv';a.click();
+}
+function importCSV(e){
+let f=e.target.files[0]; if(!f)return;
+let r=new FileReader();
+r.onload=x=>{x.target.result.split('\n').slice(1).forEach(l=>{if(!l.trim())return;let c=l.split(',');tasks.push({id:Date.now()+Math.random(),name:c[0],priority:c[1],deadline:c[2],estimate:c[3],actual:c[4],progress:+c[5],memo:c[6]||'',status:(+c[5]==0?'未着手':+c[5]==100?'完了':'進行中')});});save();};
+r.readAsText(f);
+}
+function toggleDark(){document.body.classList.toggle('dark');}
+function showKanban(){kanbanView.style.display='grid';tableView.style.display='none';}
+function showTable(){kanbanView.style.display='none';tableView.style.display='block';}
+render();
+</script></body></html>
