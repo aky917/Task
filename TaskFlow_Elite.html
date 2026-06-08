@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TaskFlow Elite</title>
+<style>
+:root{
+--bg:#0b1020;--panel:rgba(255,255,255,.08);--border:rgba(255,255,255,.12);
+--text:#eef2ff;--muted:#94a3b8;--accent:#7c3aed;--accent2:#2563eb;
+}
+*{box-sizing:border-box}
+body{margin:0;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+background:linear-gradient(135deg,#0b1020,#172554,#312e81);min-height:100vh}
+.wrap{max-width:1500px;margin:auto;padding:20px}
+.glass{background:var(--panel);backdrop-filter:blur(16px);border:1px solid var(--border);
+border-radius:24px;box-shadow:0 10px 40px rgba(0,0,0,.35)}
+.head,.toolbar,.form,.tablebox{padding:18px;margin-bottom:16px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px}
+.stat{padding:16px}.n{font-size:28px;font-weight:700}
+input,select,textarea,button{background:rgba(255,255,255,.08);color:white;border:1px solid var(--border);
+padding:10px;border-radius:12px}
+button{cursor:pointer}
+.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));border:none}
+table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px solid rgba(255,255,255,.08)}
+.badge{padding:4px 10px;border-radius:999px}.高{background:#dc2626}.中{background:#d97706}.低{background:#16a34a}
+.progress{height:8px;background:#334155;border-radius:99px;overflow:hidden}
+.fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+.kanban{display:none;grid-template-columns:repeat(3,1fr);gap:12px}
+.col{padding:12px;min-height:300px}.task{padding:10px;margin:8px 0}
+.overdue{animation:blink 1s infinite}@keyframes blink{50%{background:#7f1d1d}}
+@media(max-width:900px){.kanban{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="glass head">
+<h1>🚀 TaskFlow Elite</h1>
+<div>高機能タスク・プロジェクト管理</div>
+</div>
+
+<div class="stats">
+<div class="glass stat"><div class="n" id="s0">0</div>総タスク</div>
+<div class="glass stat"><div class="n" id="s1">0</div>完了</div>
+<div class="glass stat"><div class="n" id="s2">0%</div>完了率</div>
+<div class="glass stat"><div class="n" id="s3">0</div>本日期限</div>
+<div class="glass stat"><div class="n" id="s4">0</div>高優先度</div>
+</div>
+
+<div class="glass toolbar">
+<button onclick="viewTable()">一覧</button>
+<button onclick="viewKanban()">カンバン</button>
+<button onclick="exportCSV()">CSV出力</button>
+<input type="file" accept=".csv" onchange="importCSV(event)">
+<input id="search" placeholder="検索" oninput="render()">
+<label><input type="checkbox" id="hideDone" onchange="render()">完了非表示</label>
+</div>
+
+<div class="glass form">
+<input id="name" placeholder="タスク名">
+<select id="priority"><option>高</option><option selected>中</option><option>低</option></select>
+<input id="deadline" type="date">
+<input id="estimate" type="number" placeholder="予想日数">
+<input id="actual" type="number" placeholder="実績日数">
+<input id="progressNum" type="number" min="0" max="100" value="0">
+<textarea id="memo" placeholder="メモ"></textarea>
+<button class="primary" onclick="addTask()">追加</button>
+</div>
+
+<div id="tableView" class="glass tablebox">
+<table><thead><tr><th>タスク</th><th>優先</th><th>期限</th><th>予想</th><th>実績</th><th>進捗</th><th>メモ</th><th></th></tr></thead>
+<tbody id="tbody"></tbody></table>
+</div>
+
+<div id="kanbanView" class="kanban">
+<div class="glass col" ondragover="event.preventDefault()" ondrop="dropTask(event,'未着手')"><h3>未着手</h3><div id="todo"></div></div>
+<div class="glass col" ondragover="event.preventDefault()" ondrop="dropTask(event,'進行中')"><h3>進行中</h3><div id="doing"></div></div>
+<div class="glass col" ondragover="event.preventDefault()" ondrop="dropTask(event,'完了')"><h3>完了</h3><div id="done"></div></div>
+</div>
+</div>
+
+<script>
+let tasks=JSON.parse(localStorage.getItem('eliteTasks')||'[]');
+function save(){localStorage.setItem('eliteTasks',JSON.stringify(tasks));render();}
+function addTask(){
+let p=+progressNum.value;
+tasks.push({id:Date.now(),name:name.value,priority:priority.value,deadline:deadline.value,
+estimate:estimate.value,actual:actual.value,progress:p,memo:memo.value,
+status:p==0?'未着手':p==100?'完了':'進行中'});
+save();
+}
+function del(id){tasks=tasks.filter(t=>t.id!=id);save();}
+function render(){
+let today=new Date().toISOString().split('T')[0];
+let q=(search.value||'').toLowerCase();
+let arr=tasks.filter(t=>t.name.toLowerCase().includes(q));
+if(hideDone.checked)arr=arr.filter(t=>t.progress<100);
+arr.sort((a,b)=>(a.deadline||'9999').localeCompare(b.deadline||'9999'));
+tbody.innerHTML=''; todo.innerHTML=''; doing.innerHTML=''; done.innerHTML='';
+arr.forEach(t=>{
+let cls=t.priority=='高'&&t.progress<100&&t.deadline&&t.deadline<today?'overdue':'';
+tbody.innerHTML+=`<tr class="${cls}"><td>${t.name}</td><td><span class="badge ${t.priority}">${t.priority}</span></td><td>${t.deadline||''}</td><td>${t.estimate||''}</td><td>${t.actual||''}</td><td><div class="progress"><div class="fill" style="width:${t.progress}%"></div></div>${t.progress}%</td><td>${t.memo||''}</td><td><button onclick="del(${t.id})">削除</button></td></tr>`;
+let c=document.createElement('div'); c.className='glass task'; c.draggable=true;
+c.ondragstart=e=>e.dataTransfer.setData('id',t.id);
+c.innerHTML=`<b>${t.name}</b><br>${t.priority} | ${t.progress}%`;
+document.getElementById(t.status=='未着手'?'todo':t.status=='進行中'?'doing':'done').appendChild(c);
+});
+let doneCount=tasks.filter(t=>t.progress==100).length;
+s0.textContent=tasks.length; s1.textContent=doneCount;
+s2.textContent=(tasks.length?Math.round(doneCount/tasks.length*100):0)+'%';
+s3.textContent=tasks.filter(t=>t.deadline==today&&t.progress<100).length;
+s4.textContent=tasks.filter(t=>t.priority=='高').length;
+}
+function dropTask(e,status){
+let id=+e.dataTransfer.getData('id');
+let t=tasks.find(x=>x.id==id);
+t.status=status;
+t.progress=status=='未着手'?0:status=='完了'?100:Math.max(1,Math.min(99,t.progress||50));
+save();
+}
+function exportCSV(){
+let r=['name,priority,deadline,estimate,actual,progress,memo'];
+tasks.forEach(t=>r.push([t.name,t.priority,t.deadline,t.estimate,t.actual,t.progress,(t.memo||'').replace(/,/g,' ')].join(',')));
+let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([r.join('\n')]));a.download='tasks.csv';a.click();
+}
+function importCSV(e){
+let f=e.target.files[0]; if(!f)return;
+let rd=new FileReader();
+rd.onload=x=>{x.target.result.split('\n').slice(1).forEach(l=>{if(!l.trim())return;let c=l.split(',');tasks.push({id:Date.now()+Math.random(),name:c[0],priority:c[1],deadline:c[2],estimate:c[3],actual:c[4],progress:+c[5],memo:c[6]||'',status:(+c[5]==0?'未着手':+c[5]==100?'完了':'進行中')});});save();};
+rd.readAsText(f);
+}
+function viewKanban(){kanbanView.style.display='grid';tableView.style.display='none';}
+function viewTable(){kanbanView.style.display='none';tableView.style.display='block';}
+render();
+</script>
+</body></html>
