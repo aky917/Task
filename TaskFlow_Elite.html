@@ -6,74 +6,110 @@
 
 <style>
 :root{
---bg:#0f172a;
+--bg:#0b1020;
 --panel:#111827;
 --border:#1f2937;
 --text:#e5e7eb;
---accent:#2563eb;
+--muted:#9ca3af;
+--accent:#3b82f6;
 }
 
 body{
 margin:0;
 background:var(--bg);
 color:var(--text);
-font-family:Segoe UI;
+font-family:Segoe UI, Inter, system-ui;
+animation:fadeIn 0.4s ease;
 }
 
-.wrap{max-width:1200px;margin:auto;padding:20px;}
+@keyframes fadeIn{
+from{opacity:0; transform:translateY(8px);}
+to{opacity:1;}
+}
+
+.wrap{max-width:1100px;margin:auto;padding:20px;}
 
 .card{
 background:var(--panel);
 border:1px solid var(--border);
-border-radius:10px;
-padding:12px;
-margin-bottom:10px;
+border-radius:12px;
+padding:16px;
+margin-bottom:14px;
+animation:fadeIn 0.3s ease;
 }
 
-.form{
-display:grid;
-grid-template-columns:2fr 1fr 1fr 1fr 1fr 2fr auto;
-gap:6px;
-}
-
-input,select{
-background:#0b1220;
+button,input,select{
+background:#0f172a;
 border:1px solid var(--border);
 color:white;
-padding:6px;
-border-radius:6px;
+padding:8px;
+border-radius:8px;
 }
 
-button{
-background:#1f2937;
-color:white;
-border:none;
-padding:6px;
-border-radius:6px;
-cursor:pointer;
-}
+button{cursor:pointer;}
 button:hover{background:#374151;}
+button:active{transform:scale(.96);}
+
 .primary{background:var(--accent);}
 
-table{width:100%;border-collapse:collapse;}
-th,td{text-align:left;padding:8px;border-bottom:1px solid var(--border);}
+table{width:100%;border-collapse:collapse;font-size:14px;}
+th{color:var(--muted);font-weight:500;}
+td{border-top:1px solid var(--border);padding:10px;}
+
+tr{transition:.2s;}
 tr:hover{background:#1f2937;}
 
-.badge{
-padding:2px 6px;
-border-radius:10px;
-font-size:12px;
-}
-
+.badge{padding:3px 8px;border-radius:999px;font-size:12px;}
 .高{background:#7f1d1d;}
 .中{background:#78350f;}
 .低{background:#14532d;}
 
-.kanban{display:none;grid-template-columns:repeat(4,1fr);gap:8px;}
-.task{margin:4px;padding:6px;border-radius:6px;color:white;}
+.task{
+padding:10px;
+border-radius:10px;
+margin:6px 0;
+box-shadow:0 4px 12px rgba(0,0,0,.25);
+transition:.2s;
+cursor:grab;
+}
+.task:hover{
+transform:translateY(-4px);
+box-shadow:0 12px 25px rgba(0,0,0,.4);
+}
 
-#doneList tr{opacity:0.6;}
+/* モーダル */
+#editModal{
+display:none;
+position:fixed;
+inset:0;
+background:rgba(0,0,0,.6);
+justify-content:center;
+align-items:center;
+opacity:0;
+transition:.25s;
+}
+#editModal.active{opacity:1;}
+
+#editModal > div{
+background:#111827;
+padding:20px;
+border-radius:10px;
+width:320px;
+transform:translateY(20px);
+transition:.25s;
+}
+#editModal.active > div{
+transform:none;
+}
+
+/* 完了演出 */
+@keyframes pop{
+50%{transform:scale(1.04);}
+}
+.completed{animation:pop .3s;}
+
 input[type="range"]{width:90px;}
+.small{font-size:12px;color:var(--muted);}
 </style>
 </head>
 
@@ -82,37 +118,42 @@ input[type="range"]{width:90px;}
 
 <h2>🤖 TaskFlow AI Pro</h2>
 
-<!-- おすすめ -->
+<!-- KPI -->
+<div class="card" style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;">
+<div><b id="kpiTotal">0</b><br><span class="small">総</span></div>
+<div><b id="kpiDoing">0</b><br><span class="small">進行中</span></div>
+<div><b id="kpiDone">0</b><br><span class="small">完了</span></div>
+<div><b id="kpiDelay">0</b><br><span class="small">遅延</span></div>
+<div><b id="kpiBacklog">0</b><br><span class="small">保留</span></div>
+</div>
+
+<!-- 推薦 -->
 <div class="card">
-<b>🔥 今やるべき</b>
 <div id="recommend"></div>
 </div>
 
 <!-- 今週 -->
 <div class="card">
-<b>📆 今週のタスク</b>
+<b>📆 今週</b>
 <div id="weekTasks"></div>
 </div>
 
 <!-- 入力 -->
-<div class="card form">
+<div class="card">
 <input id="name" placeholder="タスク">
-<select id="priority">
-<option>高</option><option>中</option><option>低</option>
-</select>
+<select id="priority"><option>高</option><option>中</option><option>低</option></select>
 <input id="deadline" type="date">
-<input id="estimate" type="number" placeholder="必要日数">
+<input id="estimate" type="number" placeholder="日数">
 <input id="progressNum" value="0">
 <input id="memo" placeholder="メモ">
-<button id="addBtn" class="primary">＋</button>
+<button id="addBtn" class="primary">追加</button>
 </div>
 
 <!-- 操作 -->
 <div class="card">
-<input id="search" placeholder="検索">
 <button id="aiBtn">AI整理</button>
-<button id="tableBtn">一覧</button>
-<button id="kanbanBtn">カンバン</button>
+<button onclick="viewTable()">一覧</button>
+<button onclick="viewKanban()">カンバン</button>
 </div>
 
 <!-- 一覧 -->
@@ -120,15 +161,9 @@ input[type="range"]{width:90px;}
 <table>
 <thead>
 <tr>
-<th>タスク</th>
-<th>優先</th>
-<th>状態</th>
-<th>日数</th>
-<th>期限</th>
-<th>残日数</th>
-<th>進捗</th>
-<th>メモ</th>
-<th></th>
+<th>タスク</th><th>優先</th><th>状態</th>
+<th>日数</th><th>期限</th><th>残</th>
+<th>進捗</th><th>メモ</th><th></th>
 </tr>
 </thead>
 <tbody id="tbody"></tbody>
@@ -141,30 +176,33 @@ input[type="range"]{width:90px;}
 <table><tbody id="doneList"></tbody></table>
 </div>
 
-<!-- カンバン -->
-<div id="kanbanView" class="kanban">
+<!-- backlog -->
+<div class="card">
+<h3>🗂 バックログ</h3>
+<table><tbody id="backlogList"></tbody></table>
+</div>
 
+<!-- カンバン -->
+<div id="kanbanView" style="display:none;grid-template-columns:repeat(3,1fr);gap:12px;">
 <div class="card" ondrop="drop(event,'未着手')" ondragover="allowDrop(event)">
 <h4>未着手</h4><div id="todo"></div></div>
 
 <div class="card" ondrop="drop(event,'進行中')" ondragover="allowDrop(event)">
-<h4>進行中</h4><div id="doing"></div></div>
+<h4>進行</h4><div id="doing"></div></div>
 
 <div class="card" ondrop="drop(event,'待機')" ondragover="allowDrop(event)">
-<h4>⏳待機</h4><div id="waiting"></div></div>
+<h4>待機</h4><div id="waiting"></div></div>
 
-<div class="card" ondrop="drop(event,'完了')" ondragover="allowDrop(event)">
-<h4>完了</h4><div id="done"></div></div>
-
+<div class="card">
+<h4>✅ 完了</h4><div id="kanbanDone"></div></div>
 </div>
 
-<!-- モーダル -->
-<div id="editModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);justify-content:center;align-items:center;">
-<div style="background:#111827;padding:20px;border-radius:10px;width:320px;">
-<h3>編集</h3>
+<!-- modal -->
+<div id="editModal">
+<div>
 <input id="editName"><br><br>
 <input id="editDeadline" type="date"><br><br>
-<input id="editEstimate" type="number"><br><br>
+<input id="editEstimate"><br><br>
 <input id="editProgress" type="range" min="0" max="100"><br><br>
 <textarea id="editMemo"></textarea><br><br>
 <button onclick="saveEdit()">保存</button>
@@ -176,29 +214,19 @@ input[type="range"]{width:90px;}
 
 <script>
 const $=id=>document.getElementById(id);
-
 let tasks=JSON.parse(localStorage.getItem('tasks')||'[]');
 let editingId=null;
 
+/* 保存 */
 function save(){
 localStorage.setItem('tasks',JSON.stringify(tasks));
-render();recommend();renderWeek();
-}
-
-function toast(msg){
-let t=document.createElement("div");
-t.textContent=msg;
-t.style.cssText="position:fixed;bottom:20px;right:20px;background:#2563eb;padding:10px;border-radius:8px;color:white;";
-document.body.appendChild(t);
-setTimeout(()=>t.remove(),1500);
+render();recommend();renderWeek();renderKPI();
 }
 
 /* 追加 */
 $("addBtn").onclick=()=>{
 if(!$("name").value.trim())return;
-
 let p=+$("progressNum").value||0;
-
 tasks.push({
 id:Date.now(),
 name:$("name").value,
@@ -209,83 +237,88 @@ progress:p,
 memo:$("memo").value,
 status:p==0?'未着手':p==100?'完了':'進行中'
 });
-
 $("name").value='';
-save();toast("追加");
+save();
 };
 
 /* AI */
 function calcScore(t){
 let s=0,now=new Date();
 if(t.progress<100)s+=100;
+if(!t.deadline)s-=120;
 if(t.deadline){
 let d=(new Date(t.deadline)-now)/(1000*60*60*24);
-s+=(30-d);
+s+=30-d;
 if(t.estimate>d)s+=(t.estimate-d)*20;
 }
-s+=(100-t.progress)*0.5;
+s+=(100-t.progress)*.5;
 if(t.priority=='高')s+=30;
 return s;
 }
 
 $("aiBtn").onclick=()=>{
-tasks.sort((a,b)=>calcScore(b)-calcScore(a));
-save();toast("AI整理");
+tasks.sort((a,b)=>{
+if(!a.deadline && b.deadline) return 1;
+if(a.deadline && !b.deadline) return -1;
+return calcScore(b)-calcScore(a);
+});
+save();
 };
 
 /* 状態 */
 function statusLabel(t){
-if(t.status==='待機') return '<span style="color:#60a5fa">待機中</span>';
-if(t.progress===100) return '<span style="color:#9ca3af">完了</span>';
-
-let now=new Date();
-if(t.deadline){
-let d=(new Date(t.deadline)-now)/(1000*60*60*24);
-
-if(d<0) return '<span style="color:#ef4444;font-weight:bold">遅延</span>';
-if(t.estimate>d) return '<span style="color:#f97316;font-weight:bold">危険</span>';
-if(d<2) return '<span style="color:#facc15">注意</span>';
-}
-return '<span style="color:#22c55e">正常</span>';
+if(t.status=='待機')return '待機';
+if(t.progress==100)return '完了';
+if(!t.deadline)return '低';
+let d=(new Date(t.deadline)-new Date())/86400000;
+if(d<0)return "<span style='color:red'>遅延</span>";
+if(t.estimate>d)return "<span style='color:orange'>危険</span>";
+return "正常";
 }
 
-function remainingDays(t){
-if(!t.estimate) return '';
+function remaining(t){
 return Math.max(0,Math.round(t.estimate*(1-t.progress/100)));
+}
+
+/* KPI */
+function renderKPI(){
+$("kpiTotal").innerText=tasks.length;
+$("kpiDone").innerText=tasks.filter(t=>t.progress==100).length;
+$("kpiDoing").innerText=tasks.filter(t=>t.progress>0&&t.progress<100).length;
+$("kpiBacklog").innerText=tasks.filter(t=>!t.deadline).length;
+$("kpiDelay").innerText=tasks.filter(t=>{
+return t.deadline && new Date(t.deadline)<new Date() && t.progress<100;
+}).length;
 }
 
 /* 推薦 */
 function recommend(){
-let a=tasks.filter(t=>t.progress<100);
-if(!a.length){$("recommend").innerText="🎉OK";return;}
-let best=a.sort((a,b)=>calcScore(b)-calcScore(a))[0];
-$("recommend").innerText=best.name;
+let a=tasks.filter(t=>t.progress<100 && t.deadline);
+if(!a.length)return $("recommend").innerText="OK";
+let b=a.sort((x,y)=>calcScore(y)-calcScore(x))[0];
+$("recommend").innerHTML=`<div class="small">今やる</div><b>${b.name}</b>`;
 }
 
 /* 今週 */
 function renderWeek(){
 let now=new Date();
 let list=tasks.filter(t=>{
-if(!t.deadline||t.progress===100)return false;
+if(!t.deadline || t.progress==100)return false;
 let d=new Date(t.deadline);
-let diff=(d-now)/(1000*60*60*24);
+let diff=(d-now)/86400000;
 return diff>=0&&diff<=7;
 });
-
-list.sort((a,b)=>calcScore(b)-calcScore(a));
-
-$("weekTasks").innerHTML=list.length?
-list.map(t=>`${t.deadline} ${t.name}`).join("<br>"):"なし";
+$("weekTasks").innerHTML=list.map(t=>t.deadline+" "+t.name).join("<br>")||"なし";
 }
 
 /* render */
 function render(){
-$("tbody").innerHTML='';
-$("doneList").innerHTML='';
-["todo","doing","waiting","done"].forEach(id=>$(id).innerHTML="");
+$("tbody").innerHTML="";
+$("doneList").innerHTML="";
+$("backlogList").innerHTML="";
+["todo","doing","waiting","kanbanDone"].forEach(id=>$(id).innerHTML="");
 
 tasks.forEach(t=>{
-
 let row=`
 <tr>
 <td onclick='openModal(${JSON.stringify(t)})'>${t.name}</td>
@@ -293,49 +326,49 @@ let row=`
 <td>${statusLabel(t)}</td>
 <td>${t.estimate||''}</td>
 <td>${t.deadline||''}</td>
-<td>${remainingDays(t)}</td>
-<td>
-<input type="range" value="${t.progress}" oninput="updateProgress(${t.id},this.value)">
-${t.progress}%
-</td>
-<td style="color:#9ca3af;font-size:12px;">${t.memo||''}</td>
-<td><button onclick="del(${t.id})">🗑</button></td>
-</tr>`;
+<td>${remaining(t)}</td>
+<td><input type="range" value="${t.progress}" oninput="updateProgress(${t.id},this.value)"> ${t.progress}%</td>
+<td>${t.memo||""}</td>
+<td><button onclick="del(${t.id})">×</button></td>
+</tr>
+`;
 
-if(t.progress==100) $("doneList").innerHTML+=row;
+if(!t.deadline) $("backlogList").innerHTML+=row;
+else if(t.progress==100) $("doneList").innerHTML+=row;
 else $("tbody").innerHTML+=row;
 
-/* カンバン */
-let c=document.createElement('div');
-c.className='task';
-
-let color={高:'#7f1d1d',中:'#78350f',低:'#14532d'}[t.priority];
-c.style.background=color;
-c.textContent=`${t.name} (${t.progress}%)`;
-
+/* kanban */
+let c=document.createElement("div");
+c.className="task";
+c.textContent=t.name+" ("+t.progress+"%)";
 c.draggable=true;
 c.ondragstart=e=>e.dataTransfer.setData("id",t.id);
 
-let col={未着手:'todo',進行中:'doing',待機:'waiting',完了:'done'}[t.status];
+if(t.status=="完了") $("kanbanDone").appendChild(c);
+else{
+let col={未着手:"todo",進行中:"doing",待機:"waiting"}[t.status];
 $(col).appendChild(c);
-
+}
 });
 }
 
-/* 操作 */
+/* update */
 function updateProgress(id,v){
 let t=tasks.find(x=>x.id==id);
+let prev=t.progress;
 t.progress=+v;
-t.status=v==0?'未着手':v==100?'完了':'進行中';
+
+if(v==100){
+t.status="完了";
+t.justCompleted=true;
+}
+else if(v==0)t.status="未着手";
+else t.status="進行中";
+
 save();
 }
 
-function del(id){
-tasks=tasks.filter(t=>t.id!=id);
-save();toast("削除");
-}
-
-/* モーダル */
+/* modal */
 function openModal(t){
 editingId=t.id;
 $("editName").value=t.name;
@@ -343,11 +376,16 @@ $("editDeadline").value=t.deadline;
 $("editEstimate").value=t.estimate;
 $("editProgress").value=t.progress;
 $("editMemo").value=t.memo;
-$("editModal").style.display='flex';
+
+let m=$("editModal");
+m.style.display="flex";
+setTimeout(()=>m.classList.add("active"),10);
 }
 
 function closeModal(){
-$("editModal").style.display='none';
+let m=$("editModal");
+m.classList.remove("active");
+setTimeout(()=>m.style.display="none",200);
 }
 
 function saveEdit(){
@@ -357,34 +395,37 @@ t.deadline=$("editDeadline").value;
 t.estimate=+$("editEstimate").value;
 t.progress=+$("editProgress").value;
 t.memo=$("editMemo").value;
-t.status=t.progress==0?'未着手':t.progress==100?'完了':'進行中';
-save();closeModal();
+save();
+closeModal();
 }
 
-/* DnD */
+/* misc */
+function del(id){
+tasks=tasks.filter(t=>t.id!=id);
+save();
+}
+
 function allowDrop(e){e.preventDefault();}
 function drop(e,status){
 let id=+e.dataTransfer.getData("id");
 let t=tasks.find(x=>x.id==id);
 t.status=status;
-if(status==='完了')t.progress=100;
+if(status=="完了")t.progress=100;
 save();
 }
 
-$("tableBtn").onclick=()=>{
-$("tableView").style.display='block';
-$("kanbanView").style.display='none';
-};
+function viewTable(){
+$("tableView").style.display="block";
+$("kanbanView").style.display="none";
+}
 
-$("kanbanBtn").onclick=()=>{
-$("kanbanView").style.display='grid';
-$("tableView").style.display='none';
-};
+function viewKanban(){
+$("tableView").style.display="none";
+$("kanbanView").style.display="grid";
+}
 
-render();
-recommend();
-renderWeek();
+/* init */
+render();recommend();renderWeek();renderKPI();
 </script>
-
 </body>
 </html>
