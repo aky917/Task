@@ -1,8 +1,9 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>TaskFlow Ultimate Final</title>
+<title>TaskFlow Ultimate FINAL</title>
 
 <style>
 body{background:#0b1020;color:#e5e7eb;font-family:sans-serif;margin:0}
@@ -33,21 +34,27 @@ th:nth-child(7){width:4%}
 td{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 td:nth-child(6){white-space:normal}
 
-/* ===== 優先度（調整後） ===== */
-.badge{padding:1px 4px;border-radius:999px;font-size:11px}
-.高{background:#3b82f6}
-.中{background:#475569}
-.低{background:#334155}
+/* ✅ 優先（元色 + 小型） */
+.badge{
+  padding:0 5px;
+  border-radius:999px;
+  font-size:10px;
+  line-height:1.2;
+}
+.高{background:#7f1d1d;}
+.中{background:#78350f;}
+.低{background:#14532d;}
 
 /* ===== カンバン ===== */
 .kanban{display:none;grid-template-columns:repeat(4,1fr);gap:16px}
+
 .task{
   padding:8px;margin:6px;border-radius:8px;
   cursor:pointer;font-size:12px;transition:.2s
 }
 .task:hover{transform:scale(1.02)}
-.task b{font-size:13px}
 
+.task b{font-size:13px}
 .small{font-size:10px;color:#9ca3af}
 </style>
 
@@ -58,7 +65,8 @@ td:nth-child(6){white-space:normal}
 <h2>TaskFlow</h2>
 
 <div class="card">
-<b>今日の流れ</b><div id="today"></div>
+<b>今日の流れ</b>
+<div id="today"></div>
 </div>
 
 <div class="card">
@@ -67,7 +75,9 @@ td:nth-child(6){white-space:normal}
 
 <div class="card">
 <input id="name">
-<select id="priority"><option>高</option><option>中</option><option>低</option></select>
+<select id="priority">
+<option>高</option><option>中</option><option>低</option>
+</select>
 <input id="deadline" type="date">
 <input id="estimate" type="number">
 <input id="memo">
@@ -81,8 +91,8 @@ td:nth-child(6){white-space:normal}
 </div>
 
 <div class="card">
-<button id="btnList">📋一覧</button>
-<button id="btnBoard">📊カンバン</button>
+<button id="btnList">一覧</button>
+<button id="btnBoard">カンバン</button>
 </div>
 
 <!-- 一覧 -->
@@ -90,14 +100,19 @@ td:nth-child(6){white-space:normal}
 <table>
 <thead>
 <tr>
-<th>タスク</th><th>優先</th><th>状態</th>
-<th>期限</th><th>進捗</th><th>メモ</th><th></th>
+<th>タスク</th>
+<th>優先</th>
+<th>状態</th>
+<th>期限</th>
+<th>進捗</th>
+<th>メモ</th>
+<th></th>
 </tr>
 </thead>
 <tbody id="tbody"></tbody>
 </table>
 
-<h3 onclick="toggleDone()">✅ 完了 (<span id="doneCount"></span>)</h3>
+<h3 onclick="toggleDone()">完了 (<span id="doneCount"></span>)</h3>
 <div id="doneWrap" style="display:none">
 <table><tbody id="done"></tbody></table>
 </div>
@@ -105,10 +120,17 @@ td:nth-child(6){white-space:normal}
 
 <!-- カンバン -->
 <div id="board" class="kanban">
-<div class="card" ondrop="drop(event,'未着手')" ondragover="allowDrop(event)">未着手<div id="todo"></div></div>
-<div class="card" ondrop="drop(event,'進行中')" ondragover="allowDrop(event)">進行中<div id="doing"></div></div>
-<div class="card" ondrop="drop(event,'待機')" ondragover="allowDrop(event)">待機<div id="waiting"></div></div>
-<div class="card" ondrop="drop(event,'完了')" ondragover="allowDrop(event)">完了<div id="doneK"></div></div>
+<div class="card" ondrop="drop(event,'未着手')" ondragover="allowDrop(event)">
+未着手<div id="todo"></div></div>
+
+<div class="card" ondrop="drop(event,'進行中')" ondragover="allowDrop(event)">
+進行中<div id="doing"></div></div>
+
+<div class="card" ondrop="drop(event,'待機')" ondragover="allowDrop(event)">
+待機<div id="waiting"></div></div>
+
+<div class="card" ondrop="drop(event,'完了')" ondragover="allowDrop(event)">
+完了<div id="doneK"></div></div>
 </div>
 
 <!-- モーダル -->
@@ -162,7 +184,7 @@ status:"未着手"
 save();
 };
 
-/* 状態表示 */
+/* 状態 */
 function status(t){
 if(t.status==="待機") return "<span style='color:#60a5fa'>待機</span>";
 if(!t.deadline) return "バックログ";
@@ -378,6 +400,7 @@ $("btnList").onclick=()=>{
 $("list").style.display="block";
 $("board").style.display="none";
 };
+
 $("btnBoard").onclick=()=>{
 $("list").style.display="none";
 $("board").style.display="grid";
@@ -387,5 +410,6 @@ $("btnList").click();
 render();
 
 </script>
+
 </body>
 </html>
