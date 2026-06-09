@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -219,3 +218,138 @@ let row=`
 <td>${t.progress}%</td>
 <td>${t.memo||""}</td>
 <td>
+<button onclick="toggleWait(${t.id});event.stopPropagation()">⏸</button>
+<button onclick="del(${t.id});event.stopPropagation()">×</button>
+</td>
+</tr>
+`;
+
+if(t.progress==100){
+$("done").innerHTML+=row;doneCount++;
+}else{
+$("tbody").innerHTML+=row;
+}
+
+/* カンバン */
+let c=document.createElement("div");
+c.className="task";
+c.style.background=color(t);
+c.onclick=()=>edit(t.id);
+c.innerHTML=`<div class="small">${t.deadline||""}</div><b>${t.name}</b>`;
+c.draggable=true;
+c.ondragstart=e=>e.dataTransfer.setData("id",t.id);
+
+let col=
+t.status==="待機"?"waiting":
+t.progress==100?"doneK":
+t.progress>0?"doing":"todo";
+
+$(col).appendChild(c);
+
+});
+
+$("doneCount").innerText=doneCount;
+$("doneWrap").style.display=showDone?"block":"none";
+
+renderToday();
+}
+
+/* 編集 */
+function edit(id){
+let t=tasks.find(x=>x.id==id);
+currentId=id;
+
+$("m_name").value=t.name;
+$("m_priority").value=t.priority;
+$("m_deadline").value=t.deadline||"";
+$("m_estimate").value=t.estimate;
+$("m_progress").value=t.progress;
+$("m_memo").value=t.memo||"";
+
+$("modal").style.display="block";
+}
+
+function saveModal(){
+let t=tasks.find(x=>x.id==currentId);
+t.name=$("m_name").value;
+t.priority=$("m_priority").value;
+t.deadline=$("m_deadline").value;
+t.estimate=+$("m_estimate").value;
+t.progress=+$("m_progress").value;
+t.memo=$("m_memo").value;
+closeModal();save();
+}
+
+function closeModal(){ $("modal").style.display="none"; }
+
+/* その他 */
+function toggleWait(id){
+let t=tasks.find(x=>x.id==id);
+t.status=t.status==="待機"?"進行中":"待機";
+save();
+}
+
+function del(id){
+tasks=tasks.filter(t=>t.id!=id);
+save();
+}
+
+function save(){
+localStorage.setItem("tasks",JSON.stringify(tasks));
+render();
+}
+
+function toggleDone(){
+showDone=!showDone;
+render();
+}
+
+/* DnD */
+function allowDrop(e){e.preventDefault();}
+function drop(e,s){
+let id=+e.dataTransfer.getData("id");
+let t=tasks.find(x=>x.id==id);
+t.status=s;
+if(s==="完了") t.progress=100;
+save();
+}
+
+/* バックアップ */
+function exportTasks(){
+let blob=new Blob([JSON.stringify(tasks,null,2)]);
+let a=document.createElement("a");
+a.href=URL.createObjectURL(blob);
+a.download="backup.json";
+a.click();
+}
+
+function importTasks(e){
+let r=new FileReader();
+r.onload=x=>{
+tasks=JSON.parse(x.target.result);
+save();
+};
+r.readAsText(e.target.files[0]);
+}
+
+/* 週報 */
+function copyReport(){
+let rows=[["タスク","優先","状態","期限","進捗"]];
+tasks.forEach(t=>{
+rows.push([t.name,t.priority,"",t.deadline||"",t.progress+"%"]);
+});
+navigator.clipboard.writeText(rows.map(r=>r.join("\t")).join("\n"));
+alert("コピーOK");
+}
+
+/* UI */
+$("btnList").onclick=()=>{$("list").style.display="block";$("board").style.display="none";}
+$("btnBoard").onclick=()=>{$("list").style.display="none";$("board").style.display="grid";}
+
+$("btnList").click();
+render();
+
+</script>
+
+</body>
+</html>
