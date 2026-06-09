@@ -1,31 +1,76 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>TaskFlow Ultimate Stable</title>
+<title>TaskFlow Ultimate FINAL</title>
 
 <style>
 body{background:#0b1020;color:#e5e7eb;font-family:Segoe UI;margin:0}
-.wrap{max-width:1100px;margin:auto;padding:20px}
-.card{background:#111827;border:1px solid #1f2937;border-radius:12px;padding:16px;margin-bottom:14px}
+.wrap{max-width:1800px;padding:20px 40px;margin:auto}
 
-button,input,select,textarea{
-background:#0f172a;border:1px solid #1f2937;color:white;padding:8px;border-radius:6px
+.card{
+background:#111827;border:1px solid #1f2937;
+border-radius:12px;padding:16px;margin-bottom:14px
 }
 
-table{width:100%;border-collapse:collapse}
-th{color:#9ca3af;text-align:left;padding:8px}
-td{padding:8px;border-top:1px solid #1f2937}
+button,input,select,textarea{
+background:#0f172a;border:1px solid #1f2937;
+color:white;padding:6px;border-radius:6px
+}
 
-.task{padding:8px;margin:6px;border-radius:8px;cursor:pointer}
-.kanban{display:none;grid-template-columns:repeat(4,1fr);gap:10px}
-.small{font-size:11px;color:#9ca3af}
-.badge{padding:2px 6px;border-radius:999px}
+table{
+width:100%;
+border-collapse:collapse;
+table-layout:fixed;
+}
+
+th,td{padding:8px;border-top:1px solid #1f2937}
+th{color:#9ca3af;text-align:left}
+
+/* ヘッダー固定 */
+#tableView{max-height:600px;overflow:auto}
+thead th{
+position:sticky;top:0;background:#111827;
+z-index:10;border-bottom:1px solid #1f2937;
+}
+
+/* 列固定 */
+th:nth-child(1),td:nth-child(1){width:30%}
+th:nth-child(2),td:nth-child(2){width:8%}
+th:nth-child(3),td:nth-child(3){width:10%}
+th:nth-child(4),td:nth-child(4){width:12%}
+th:nth-child(5),td:nth-child(5){width:15%}
+th:nth-child(6),td:nth-child(6){width:20%}
+th:nth-child(7),td:nth-child(7){width:5%}
+
+td{
+overflow:hidden;
+text-overflow:ellipsis;
+white-space:nowrap;
+}
+
+td:nth-child(6){white-space:normal}
+
+.kanban{
+display:none;
+grid-template-columns:repeat(4,1fr);
+gap:16px;
+}
+
+.task{
+padding:8px;margin:6px;border-radius:8px;
+cursor:pointer;font-size:13px
+}
+
+.badge{padding:2px 6px;border-radius:999px;font-size:12px}
 .高{background:#7f1d1d}.中{background:#78350f}.低{background:#14532d}
-.active-tab{background:#3b82f6 !important}
-</style>
-</head>
 
+.small{font-size:11px;color:#9ca3af}
+.active-tab{background:#3b82f6}
+</style>
+
+</head>
 <body>
 <div class="wrap">
 
@@ -36,12 +81,9 @@ td{padding:8px;border-top:1px solid #1f2937}
 <div id="todaySchedule"></div>
 </div>
 
-<!-- 入力 -->
 <div class="card">
 <input id="name" placeholder="タスク">
-<select id="priority">
-<option>高</option><option>中</option><option>低</option>
-</select>
+<select id="priority"><option>高</option><option>中</option><option>低</option></select>
 <input id="deadline" type="date">
 <input id="estimate" type="number" placeholder="日数">
 <input id="memo" placeholder="メモ">
@@ -64,10 +106,16 @@ td{padding:8px;border-top:1px solid #1f2937}
 </thead>
 <tbody id="tbody"></tbody>
 </table>
+
+<h3 onclick="toggleDone()">✅ 完了 (<span id="doneCount"></span>)</h3>
+<div id="doneWrap" style="display:none">
+<table><tbody id="done"></tbody></table>
+</div>
 </div>
 
 <!-- カンバン -->
 <div id="kanbanView" class="kanban">
+
 <div class="card" ondrop="drop(event,'未着手')" ondragover="allowDrop(event)">
 <h4>未着手</h4><div id="todo"></div>
 </div>
@@ -83,11 +131,12 @@ td{padding:8px;border-top:1px solid #1f2937}
 <div class="card" ondrop="drop(event,'完了')" ondragover="allowDrop(event)">
 <h4>完了</h4><div id="doneK"></div>
 </div>
+
 </div>
 
 <!-- モーダル -->
 <div id="modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7)">
-<div style="background:#111827;padding:20px;margin:100px auto;width:300px">
+<div style="background:#111827;padding:20px;margin:100px auto;width:320px">
 
 <input id="m_name"><br><br>
 <select id="m_priority"><option>高</option><option>中</option><option>低</option></select><br><br>
@@ -109,37 +158,28 @@ td{padding:8px;border-top:1px solid #1f2937}
 const $=id=>document.getElementById(id);
 let tasks=JSON.parse(localStorage.getItem('tasks')||'[]');
 let currentId=null;
+let showDone=false;
 
 /* AI */
 function calcScore(t){
-let s=0, now=new Date();
-
 if(!t.deadline) return -9999;
-
-let d=(new Date(t.deadline)-now)/86400000;
-
-s+=80-d*5;
+let d=(new Date(t.deadline)-new Date())/86400000;
+let s=80-d*5;
 if(d<0)s+=200;
 if(t.estimate>d)s+=(t.estimate-d)*30;
-
 if(t.progress>0)s+=40;
 if(t.status==="待機")s-=100;
-
 return s;
 }
 
 /* 状態 */
 function status(t){
-if(t.status==="待機")return "<span style='color:#60a5fa'>待機</span>";
-
-if(!t.deadline)return "<span style='color:#666'>バックログ</span>";
-
+if(t.status==="待機") return "🔵待機";
+if(!t.deadline) return "バックログ";
 let d=(new Date(t.deadline)-new Date())/86400000;
-
-if(d<0)return "<span style='color:#ef4444'>遅延</span>";
-if(t.estimate>d)return "<span style='color:#f97316'>危険</span>";
-if(d<2)return "<span style='color:#facc15'>注意</span>";
-
+if(d<0) return "<span style='color:#ef4444'>遅延</span>";
+if(t.estimate>d) return "<span style='color:#f97316'>危険</span>";
+if(d<2) return "<span style='color:#facc15'>注意</span>";
 return "正常";
 }
 
@@ -149,71 +189,107 @@ let r=Math.round(t.estimate*(1-t.progress/100));
 return r<0?`<span style="color:#ef4444">${r}</span>`:r;
 }
 
-/* 時間割 */
+function remainLabel(t){
+let r=Math.round(t.estimate*(1-t.progress/100));
+return r<0?`<span style="color:#ef4444">残${r}日</span>`:`残${r}日`;
+}
+
+/* 状態アイコン */
+function statusIcon(t){
+if(t.status==="待機") return "⏸";
+let d=(new Date(t.deadline)-new Date())/86400000;
+if(d<0) return "🔴";
+if(t.estimate>d) return "🟠";
+if(d<2) return "🟡";
+return "";
+}
+
+/* 今日 */
 function renderToday(){
 let list=tasks.filter(t=>t.progress<100 && t.deadline);
 list.sort((a,b)=>calcScore(b)-calcScore(a));
 
-let h=6, res=[];
+let h=6,res=[];
 for(let t of list){
 if(h<=0)break;
-
 let need=(t.estimate*6)*(1-t.progress/100);
 let use=Math.min(h,need);
-
 res.push(`・${t.name}（${Math.round(use)}h）`);
 h-=use;
 }
 todaySchedule.innerHTML=res.join("<br>")||"なし";
 }
 
+/* 7日フィルタ */
+function isActive(t){
+if(t.progress<100) return true;
+if(!t.doneAt) return true;
+return (Date.now()-t.doneAt)/86400000<7;
+}
+
 /* 描画 */
 function render(){
+
 tbody.innerHTML="";
+done.innerHTML="";
 ["todo","doing","waiting","doneK"].forEach(id=>$(id).innerHTML="");
 
 tasks.sort((a,b)=>{
-if(!a.deadline && b.deadline)return 1;
-if(a.deadline && !b.deadline)return -1;
+if(!a.deadline && b.deadline) return 1;
+if(a.deadline && !b.deadline) return -1;
 return calcScore(b)-calcScore(a);
 });
+
+let doneCountNum=0;
 
 tasks.forEach(t=>{
 
 let row=`
 <tr>
 <td onclick="edit(${t.id})">${t.name}</td>
-<td class="${t.priority} badge">${t.priority}</td>
+<td class="badge ${t.priority}">${t.priority}</td>
 <td>${status(t)}</td>
 <td>${t.deadline||""}</td>
 <td>${t.progress}%（残 ${remain(t)}日）</td>
-
 <td onclick="toggleMemo(this)">
 ${short(t.memo)}
 <div class="full" style="display:none">${t.memo||""}</div>
 </td>
-
 <td>
-<button onclick="toggleWaiting(${t.id})">
+<button onclick="toggleWaiting(${t.id});event.stopPropagation()">
 ${t.status==="待機"?"▶":"⏸"}
 </button>
-<button onclick="del(${t.id})">×</button>
+<button onclick="del(${t.id});event.stopPropagation()">×</button>
 </td>
 </tr>
 `;
 
+if(t.progress==100){
+done.innerHTML+=row;
+doneCountNum++;
+}else{
 tbody.innerHTML+=row;
+}
 
 /* カンバン */
+if(!isActive(t)) return;
+
 let c=document.createElement("div");
 c.className="task";
 c.style.background=color(t);
 
-c.innerHTML=`<b>${t.name}</b>
-<div class="small">${t.deadline||""}</div>
-<div style="height:4px;background:#000">
+c.onclick=()=>edit(t.id);
+
+c.innerHTML=`
+<div class="small">
+<span class="badge ${t.priority}">${t.priority}</span>
+${t.deadline||""} ・ ${remainLabel(t)}
+</div>
+<b>${statusIcon(t)} ${t.name}</b>
+<div style="height:4px;background:#000;margin-top:5px">
 <div style="width:${t.progress}%;height:100%;background:#3b82f6"></div>
-</div>`;
+</div>
+`;
 
 c.draggable=true;
 c.ondragstart=e=>e.dataTransfer.setData("id",t.id);
@@ -227,6 +303,9 @@ $(col).appendChild(c);
 
 });
 
+doneWrap.style.display=showDone?"block":"none";
+doneCount.innerText=doneCountNum;
+
 renderToday();
 }
 
@@ -234,17 +313,17 @@ renderToday();
 function toggleWaiting(id){
 let t=tasks.find(x=>x.id==id);
 t.status=t.status==="待機"?"進行中":"待機";
-if(t.progress===0 && t.status==="進行中")t.progress=10;
+if(t.progress===0 && t.status==="進行中") t.progress=10;
 save();
-}
-
-function short(m){
-return !m?"":m.length>20?m.slice(0,20)+"...":m;
 }
 
 function toggleMemo(td){
 let f=td.querySelector(".full");
 f.style.display=f.style.display==="none"?"block":"none";
+}
+
+function short(m){
+return !m?"":m.length>20?m.slice(0,20)+"...":m;
 }
 
 /* モーダル */
@@ -264,15 +343,42 @@ function closeModal(){modal.style.display="none";}
 
 function saveModal(){
 let t=tasks.find(x=>x.id==currentId);
+
 t.name=m_name.value;
 t.priority=m_priority.value;
 t.deadline=m_deadline.value;
 t.estimate=+m_estimate.value;
 t.progress=+m_progress.value;
 t.memo=m_memo.value;
-closeModal();save();
+
+if(t.progress==100 && !t.doneAt){
+t.doneAt=Date.now();
 }
 
+closeModal();
+save();
+}
+
+/* DnD */
+function allowDrop(e){e.preventDefault();}
+
+function drop(e,s){
+let id=+e.dataTransfer.getData("id");
+let t=tasks.find(x=>x.id==id);
+
+t.status=s;
+
+if(s==="完了"){
+t.progress=100;
+t.doneAt=Date.now();
+}
+
+if(s==="未着手") t.progress=0;
+
+save();
+}
+
+/* CRUD */
 function del(id){
 tasks=tasks.filter(t=>t.id!=id);
 save();
@@ -283,24 +389,19 @@ localStorage.setItem('tasks',JSON.stringify(tasks));
 render();
 }
 
-/* DnD */
-function allowDrop(e){e.preventDefault();}
-function drop(e,s){
-let id=+e.dataTransfer.getData("id");
-let t=tasks.find(x=>x.id==id);
-t.status=s;
-if(s==="完了")t.progress=100;
-save();
+function toggleDone(){
+showDone=!showDone;
+render();
 }
 
 /* 色 */
 function color(t){
-if(t.status==="待機")return "#1e3a8a";
-if(!t.deadline)return "#444";
+if(t.status==="待機") return "#1e3a8a";
+if(!t.deadline) return "#374151";
 let d=(new Date(t.deadline)-new Date())/86400000;
-if(d<0)return "#7f1d1d";
-if(t.estimate>d)return "#78350f";
-if(d<2)return "#92400e";
+if(d<0) return "#7f1d1d";
+if(t.estimate>d) return "#78350f";
+if(d<2) return "#92400e";
 return "#1f2937";
 }
 
@@ -309,6 +410,7 @@ btnTable.onclick=()=>{
 tableView.style.display="block";
 kanbanView.style.display="none";
 };
+
 btnKanban.onclick=()=>{
 tableView.style.display="none";
 kanbanView.style.display="grid";
