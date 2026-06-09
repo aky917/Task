@@ -1,116 +1,199 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>TaskFlow Stable Final</title>
+<title>TaskFlow Ultimate PRO FINAL</title>
 
 <style>
-body{background:#0b1020;color:#e5e7eb;font-family:sans-serif;margin:0}
-.wrap{max-width:1800px;margin:auto;padding:20px 40px}
+body{background:#0b1020;color:#e5e7eb;font-family:Segoe UI;margin:0}
+.wrap{max-width:1800px;padding:20px 40px;margin:auto}
 
-.card{background:#111827;border:1px solid #1f2937;border-radius:10px;padding:14px;margin-bottom:12px}
-
-button,input,select,textarea{
-background:#0f172a;border:1px solid #1f2937;color:white;padding:6px;border-radius:6px
+.card{
+background:#111827;border:1px solid #1f2937;
+border-radius:12px;padding:16px;margin-bottom:14px
 }
 
-table{width:100%;table-layout:fixed;border-collapse:collapse}
-th,td{padding:6px;border-top:1px solid #1f2937}
-th{color:#aaa}
+/* 入力 */
+button,input,select,textarea{
+background:#0f172a;
+border:1px solid #1f2937;
+color:white;
+padding:6px;
+border-radius:6px
+}
 
-tbody tr:hover{background:#1f2937;cursor:pointer}
+/* ===== テーブル ===== */
+table{
+width:100%;
+border-collapse:collapse;
+table-layout:fixed;
+}
 
-th:nth-child(1){width:32%}
-th:nth-child(2){width:5%;text-align:center}
-th:nth-child(3){width:10%}
-th:nth-child(4){width:12%}
-th:nth-child(5){width:15%}
-th:nth-child(6){width:20%}
-th:nth-child(7){width:4%}
+th,td{
+padding:8px;
+border-top:1px solid #1f2937
+}
 
-td{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-td:nth-child(6){white-space:normal}
+th{
+color:#9ca3af;
+text-align:left;
+}
 
-.badge{padding:2px 6px;border-radius:999px;font-size:12px}
-.高{background:#7f1d1d}.中{background:#78350f}.低{background:#14532d}
+/* ホバー */
+tbody tr:hover{
+background:#1f2937;
+cursor:pointer;
+}
 
-.kanban{display:none;grid-template-columns:repeat(4,1fr);gap:10px}
-.task{padding:8px;margin:6px;border-radius:8px;background:#1f2937;cursor:pointer}
-.small{font-size:11px;color:#aaa}
+/* 列幅 */
+th:nth-child(1),td:nth-child(1){width:32%}
+th:nth-child(2),td:nth-child(2){width:5%;text-align:center}
+th:nth-child(3),td:nth-child(3){width:10%}
+th:nth-child(4),td:nth-child(4){width:12%}
+th:nth-child(5),td:nth-child(5){width:15%}
+th:nth-child(6),td:nth-child(6){width:20%}
+th:nth-child(7),td:nth-child(7){width:4%}
+
+/* テキスト制御 */
+td{
+overflow:hidden;
+text-overflow:ellipsis;
+white-space:nowrap;
+}
+
+td:nth-child(6){
+white-space:normal;
+}
+
+/* ===== カンバン ===== */
+.kanban{
+display:none;
+grid-template-columns:repeat(4,1fr);
+gap:16px;
+}
+
+.task{
+padding:8px;
+margin:6px;
+border-radius:8px;
+cursor:pointer;
+font-size:13px;
+transition:0.2s;
+}
+
+.task:hover{
+transform:scale(1.02);
+}
+
+/* 優先 */
+.badge{
+padding:2px 6px;
+border-radius:999px;
+font-size:12px
+}
+
+.高{background:#7f1d1d}
+.中{background:#78350f}
+.低{background:#14532d}
+
+.small{
+font-size:11px;
+color:#9ca3af;
+}
 </style>
-
 </head>
+
 <body>
 <div class="wrap">
 
-<h2>TaskFlow</h2>
+<h2>🤖 TaskFlow Ultimate</h2>
 
+<!-- 今日 -->
 <div class="card">
-<b>今日の流れ</b><div id="today"></div>
+<b>🕒 今日の流れ</b>
+<div id="today"></div>
 </div>
 
+<!-- 検索 -->
 <div class="card">
-<input id="search" placeholder="検索" style="width:100%">
+<input id="search" placeholder="🔍 検索" style="width:100%">
 </div>
 
+<!-- 入力 -->
 <div class="card">
 <input id="name" placeholder="タスク">
-<select id="priority"><option>高</option><option>中</option><option>低</option></select>
+<select id="priority">
+<option>高</option><option>中</option><option>低</option>
+</select>
 <input id="deadline" type="date">
 <input id="estimate" type="number">
-<input id="memo">
+<input id="memo" placeholder="メモ">
+
 <button id="addBtn">追加</button>
-<button onclick="copy()">週報コピー</button>
-<button onclick="exportData()">保存</button>
-<input type="file" id="file" style="display:none" onchange="importData(event)">
-<button onclick="document.getElementById('file').click()">復元</button>
+<button onclick="copyReport()">📋週報</button>
+<button onclick="exportTasks()">💾保存</button>
+<input type="file" id="file" style="display:none" onchange="importTasks(event)">
+<button onclick="$('file').click()">📂復元</button>
 </div>
 
+<!-- 切替 -->
 <div class="card">
-<button id="toList">一覧</button>
-<button id="toBoard">カンバン</button>
+<button id="btnTable">📋一覧</button>
+<button id="btnKanban">📊カンバン</button>
 </div>
 
-<div class="card" id="list">
+<!-- 一覧 -->
+<div id="tableView" class="card">
 <table>
 <thead>
 <tr>
-<th>タスク</th><th>優先</th><th>状態</th>
-<th>期限</th><th>進捗</th><th>メモ</th><th></th>
+<th>タスク</th>
+<th>優先</th>
+<th>状態</th>
+<th>期限</th>
+<th>進捗</th>
+<th>メモ</th>
+<th></th>
 </tr>
 </thead>
 <tbody id="tbody"></tbody>
 </table>
 
-<h3 onclick="toggleDone()">完了 (<span id="doneCount"></span>)</h3>
+<h3 onclick="toggleDone()">✅ 完了 (<span id="doneCount"></span>)</h3>
 <div id="doneWrap" style="display:none">
-<table><tbody id="done"></tbody></table>
+<table>
+<tbody id="done"></tbody>
+</table>
 </div>
 
 </div>
 
-<div id="board" class="kanban">
+<!-- カンバン -->
+<div id="kanbanView" class="kanban">
 
 <div class="card" ondrop="drop(event,'未着手')" ondragover="allowDrop(event)">
-未着手<div id="todo"></div></div>
+<h4>未着手</h4><div id="todo"></div>
+</div>
 
 <div class="card" ondrop="drop(event,'進行中')" ondragover="allowDrop(event)">
-進行中<div id="doing"></div></div>
+<h4>進行中</h4><div id="doing"></div>
+</div>
 
 <div class="card" ondrop="drop(event,'待機')" ondragover="allowDrop(event)">
-待機<div id="waiting"></div></div>
+<h4>待機</h4><div id="waiting"></div>
+</div>
 
 <div class="card" ondrop="drop(event,'完了')" ondragover="allowDrop(event)">
-完了<div id="doneK"></div></div>
+<h4>完了</h4><div id="doneK"></div>
+</div>
 
 </div>
 
 </div>
 
 <script>
-
 const $=id=>document.getElementById(id);
+
 let tasks=JSON.parse(localStorage.getItem("tasks")||"[]");
 let keyword="";
 let showDone=false;
@@ -136,33 +219,53 @@ memo:$("memo").value,
 status:"未着手"
 });
 
-["name","deadline","estimate","memo"].forEach(i=>$(i).value="");
+["name","deadline","estimate","memo"].forEach(id=>$(id).value="");
 save();
 };
 
-/* 状態 */
+/* 状態（色付き） */
 function status(t){
-if(t.status==="待機")return"待機";
-if(!t.deadline)return"バックログ";
+if(t.status==="待機") return `<span style="color:#60a5fa">待機</span>`;
+if(!t.deadline) return "バックログ";
+
 let d=(new Date(t.deadline)-new Date())/86400000;
-if(d<0)return"遅延";
-if(t.estimate>d)return"危険";
-if(d<2)return"注意";
-return"正常";
+
+if(d<0) return `<span style="color:#ef4444">遅延</span>`;
+if(t.estimate>d) return `<span style="color:#f97316">危険</span>`;
+if(d<2) return `<span style="color:#facc15">注意</span>`;
+
+return "正常";
+}
+
+/* 色 */
+function color(t){
+if(t.status==="待機") return "#1e3a8a";
+
+let d=(new Date(t.deadline)-new Date())/86400000;
+
+if(d<0) return "#7f1d1d";
+if(t.estimate>d) return "#78350f";
+if(d<2) return "#92400e";
+
+return "#1f2937";
 }
 
 /* 今日 */
-function today(){
+function renderToday(){
 let list=tasks.filter(t=>t.progress<100&&t.deadline);
 list.sort((a,b)=>new Date(a.deadline)-new Date(b.deadline));
 
 let h=6,res=[];
-list.forEach(t=>{
+for(let t of list){
+if(h<=0) break;
+
 let need=(t.estimate*6)*(1-t.progress/100);
 let use=Math.min(h,need);
-if(h>0){res.push(`${t.name}(${Math.round(use)}h)`);h-=use;}
-});
-$("today").innerHTML=res.join("<br>");
+
+res.push(`・${t.name}（${Math.round(use)}h）`);
+h-=use;
+}
+$("today").innerHTML=res.join("<br>")||"なし";
 }
 
 /* render */
@@ -176,8 +279,9 @@ let doneCount=0;
 
 tasks.forEach(t=>{
 
-if(keyword && !t.name.toLowerCase().includes(keyword)
-&& !(t.memo||"").toLowerCase().includes(keyword)) return;
+if(keyword &&
+!t.name.toLowerCase().includes(keyword) &&
+!(t.memo||"").toLowerCase().includes(keyword)) return;
 
 /* 一覧 */
 let row=`
@@ -203,30 +307,34 @@ $("tbody").innerHTML+=row;
 }
 
 /* カンバン */
-let card=document.createElement("div");
-card.className="task";
+let c=document.createElement("div");
+c.className="task";
+c.style.background=color(t);
 
-card.innerHTML=`
-<div class="small">${t.deadline||""}</div>
+c.innerHTML=`
+<div class="small">
+<span class="badge ${t.priority}">${t.priority}</span>
+${t.deadline||""}
+</div>
 <b>${t.name}</b>
 `;
 
-card.draggable=true;
-card.ondragstart=e=>e.dataTransfer.setData("id",t.id);
+c.draggable=true;
+c.ondragstart=e=>e.dataTransfer.setData("id",t.id);
 
 let col=
 t.status==="待機"?"waiting":
 t.progress==100?"doneK":
 t.progress>0?"doing":"todo";
 
-$(col).appendChild(card);
+$(col).appendChild(c);
 
 });
 
 $("doneCount").innerText=doneCount;
 $("doneWrap").style.display=showDone?"block":"none";
 
-today();
+renderToday();
 }
 
 /* 操作 */
@@ -253,33 +361,48 @@ render();
 
 /* DnD */
 function allowDrop(e){e.preventDefault();}
-function drop(e,status){
+
+function drop(e,s){
 let id=+e.dataTransfer.getData("id");
 let t=tasks.find(x=>x.id==id);
 
-t.status=status;
-if(status==="完了")t.progress=100;
+t.status=s;
+
+if(s==="完了"){
+t.progress=100;
+t.doneAt=Date.now();
+}
+if(s==="未着手") t.progress=0;
+
 save();
 }
 
 /* 週報 */
-function copy(){
+function copyReport(){
 let rows=[["タスク","優先","状態","期限","進捗"]];
-tasks.forEach(t=>rows.push([t.name,t.priority,status(t),t.deadline||"",t.progress+"%"]));
+tasks.forEach(t=>{
+rows.push([t.name,t.priority,strip(status(t)),t.deadline||"",t.progress+"%"]);
+});
 navigator.clipboard.writeText(rows.map(r=>r.join("\t")).join("\n"));
-alert("コピーOK");
+alert("コピー完了");
+}
+
+function strip(html){
+return html.replace(/<[^>]+>/g,"");
 }
 
 /* バックアップ */
-function exportData(){
-let blob=new Blob([JSON.stringify(tasks)],{type:"app/json"});
+function exportTasks(){
+let blob=new Blob([JSON.stringify(tasks,null,2)],{type:"application/json"});
 let a=document.createElement("a");
 a.href=URL.createObjectURL(blob);
 a.download="backup.json";
 a.click();
 }
 
-function importData(e){
+function importTasks(e){
+if(!confirm("上書きします")) return;
+
 let r=new FileReader();
 r.onload=x=>{
 tasks=JSON.parse(x.target.result);
@@ -288,13 +411,20 @@ save();
 r.readAsText(e.target.files[0]);
 }
 
-/* 切替 */
-$("toList").onclick=()=>{$("list").style.display="block";$("board").style.display="none";}
-$("toBoard").onclick=()=>{$("list").style.display="none";$("board").style.display="grid";}
+/* UI */
+$("btnTable").onclick=()=>{
+$("tableView").style.display="block";
+$("kanbanView").style.display="none";
+};
 
-$("toList").click();
+$("btnKanban").onclick=()=>{
+$("tableView").style.display="none";
+$("kanbanView").style.display="grid";
+};
+
+$("btnTable").click();
 render();
-
 </script>
+
 </body>
 </html>
