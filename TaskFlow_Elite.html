@@ -7,25 +7,50 @@
 <style>
 body{background:#0b1020;color:#e5e7eb;font-family:Segoe UI;margin:0}
 .wrap{max-width:1100px;margin:auto;padding:20px}
-.card{background:#111827;border:1px solid #1f2937;border-radius:12px;padding:16px;margin-bottom:14px}
+
+.card{
+background:#111827;border:1px solid #1f2937;
+border-radius:12px;padding:16px;margin-bottom:14px
+}
 
 button,input,select{
-background:#0f172a;border:1px solid #1f2937;color:white;
-padding:8px 12px;border-radius:6px;cursor:pointer
+background:#0f172a;border:1px solid #1f2937;
+color:white;padding:8px 12px;border-radius:6px;cursor:pointer
 }
 
 .active-tab{background:#3b82f6 !important}
 
 table{width:100%;border-collapse:collapse}
-td,th{padding:8px;border-top:1px solid #1f2937}
 
-.badge{padding:2px 6px;border-radius:999px}
+th{
+text-align:left;
+color:#9ca3af;
+font-weight:normal;
+padding:8px;
+}
+
+td{
+padding:8px;border-top:1px solid #1f2937;
+text-align:left;
+}
+
+.badge{
+padding:2px 6px;border-radius:999px;font-size:12px
+}
 .高{background:#7f1d1d}
 .中{background:#78350f}
 .低{background:#14532d}
 
-.task{padding:8px;margin:6px;border-radius:8px;cursor:pointer;font-size:13px}
-.kanban{display:none;grid-template-columns:repeat(3,1fr);gap:10px}
+.task{
+padding:8px;margin:6px;border-radius:8px;
+cursor:pointer;font-size:13px
+}
+
+.kanban{
+display:none;
+grid-template-columns:repeat(3,1fr);
+gap:10px;
+}
 
 .small{font-size:11px;color:#9ca3af}
 </style>
@@ -36,17 +61,13 @@ td,th{padding:8px;border-top:1px solid #1f2937}
 
 <h2>🤖 TaskFlow Ultimate</h2>
 
-<!-- AI -->
-<div class="card">
-<div id="recommend"></div>
-</div>
+<div class="card"><div id="recommend"></div></div>
 
 <div class="card">
 <b>📆 今週</b>
 <div id="week"></div>
 </div>
 
-<!-- 入力 -->
 <div class="card">
 <input id="name" placeholder="タスク">
 <select id="priority">
@@ -57,7 +78,6 @@ td,th{padding:8px;border-top:1px solid #1f2937}
 <button id="addBtn">追加</button>
 </div>
 
-<!-- タブ -->
 <div class="card">
 <button id="btnTable" onclick="viewTable()">📋 一覧</button>
 <button id="btnKanban" onclick="viewKanban()">📊 カンバン</button>
@@ -106,14 +126,10 @@ td,th{padding:8px;border-top:1px solid #1f2937}
 
 <h3>タスク編集</h3>
 <input id="m_name"><br><br>
-
-<select id="m_priority">
-<option>高</option><option>中</option><option>低</option>
-</select><br><br>
-
+<select id="m_priority"><option>高</option><option>中</option><option>低</option></select><br><br>
 <input id="m_deadline" type="date"><br><br>
 <input id="m_estimate" type="number"><br><br>
-<input id="m_progress" type="number" min="0" max="100"><br><br>
+<input id="m_progress" type="number"><br><br>
 
 <button onclick="saveModal()">保存</button>
 <button onclick="closeModal()">閉じる</button>
@@ -124,33 +140,27 @@ td,th{padding:8px;border-top:1px solid #1f2937}
 </div>
 
 <script>
-const $=id=>document.getElementById(id);
 
+const $=id=>document.getElementById(id);
 let tasks=JSON.parse(localStorage.getItem('tasks')||'[]');
 let showDone=false;
 let currentId=null;
 
-/* AIスコア */
+/* AI */
 function calcScore(t){
-let s=0;
-let now=new Date();
-
-if(t.progress<100)s+=100;
+let s=100-t.progress;
 if(!t.deadline)s-=120;
+if(t.priority=="高")s+=30;
 
 if(t.deadline){
-let d=(new Date(t.deadline)-now)/86400000;
+let d=(new Date(t.deadline)-new Date())/86400000;
 s+=30-d;
-if(t.estimate>d)s+=(t.estimate-d)*20;
+if(t.estimate>d)s+=40;
 }
-
-s+=(100-t.progress)*0.5;
-if(t.priority=="高")s+=30;
 
 return s;
 }
 
-/* 保存 */
 function save(){
 tasks.sort((a,b)=>calcScore(b)-calcScore(a));
 localStorage.setItem('tasks',JSON.stringify(tasks));
@@ -175,9 +185,9 @@ parentId:null
 save();
 };
 
-/* 子追加（親のみ） */
+/* 子 */
 function addChild(pid){
-let n=prompt("子タスク名");
+let n=prompt("子タスク");
 if(!n)return;
 
 let p=tasks.find(t=>t.id==pid);
@@ -191,7 +201,6 @@ estimate:1,
 progress:0,
 parentId:pid
 });
-
 save();
 }
 
@@ -203,14 +212,12 @@ done.innerHTML="";
 ["todo","doing","doneK"].forEach(id=>$(id).innerHTML="");
 
 let parents=tasks.filter(t=>!t.parentId);
-let children=tasks.filter(t=>t.parentId);
 
 let count=0;
 
 parents.forEach(p=>{
 draw(p,false);
-children.filter(c=>c.parentId===p.id)
-.forEach(c=>draw(c,true,p));
+tasks.filter(c=>c.parentId===p.id).forEach(c=>draw(c,true,p));
 });
 
 function draw(t,isChild,parent){
@@ -232,20 +239,45 @@ ${!t.parentId?`<button onclick="addChild(${t.id})">＋</button>`:""}
 </tr>
 `;
 
-if(t.progress==100){done.innerHTML+=row;count++;}
-else{tbody.innerHTML+=row;}
+if(t.progress==100){
+
+/* 親表示 */
+if(t.parentId){
+let parent=tasks.find(x=>x.id==t.parentId);
+if(parent){
+done.innerHTML+=`
+<tr style="opacity:0.4">
+<td>${parent.name}</td><td colspan="5"></td>
+</tr>`;
+}
+}
+
+done.innerHTML+=row;
+count++;
+
+}else{
+tbody.innerHTML+=row;
+}
 
 /* カンバン */
-if(t.parentId){
+let hasChild=tasks.some(x=>x.parentId===t.id);
+
+if(t.parentId || !hasChild){
+
+let parentName = t.parentId
+? tasks.find(x=>x.id==t.parentId).name
+: null;
 
 let c=document.createElement("div");
+
 c.className="task";
 c.style.background=getColor(t);
 
 c.innerHTML=`
-<div class="small">${parent.name}</div>
+${parentName?`<div class="small">${parentName}</div>`:""}
 <b>${t.name}</b>
 <div class="small">${t.deadline||"なし"} ・ ${t.priority}</div>
+
 <div style="height:4px;background:#000;margin-top:5px;border-radius:3px;">
 <div style="width:${t.progress}%;height:100%;background:#3b82f6"></div>
 </div>
@@ -255,7 +287,7 @@ c.onclick=()=>openEdit(t.id);
 c.draggable=true;
 c.ondragstart=e=>e.dataTransfer.setData("id",t.id);
 
-let col=(t.progress==100)?"doneK":(t.progress>0?"doing":"todo");
+let col=t.progress==100?"doneK":(t.progress>0?"doing":"todo");
 $(col).appendChild(c);
 
 }
@@ -266,7 +298,7 @@ doneCount.innerText=count;
 doneWrap.style.display=showDone?"block":"none";
 }
 
-/* ステータス */
+/* 状態 */
 function status(t){
 if(t.progress==100)return "完了";
 if(!t.deadline)return "<span style='color:#9ca3af'>バックログ</span>";
@@ -280,24 +312,25 @@ if(d<2)return "<span style='color:#facc15'>注意</span>";
 return "正常";
 }
 
-/* AIおすすめ */
+/* AI表示 */
 function recommend(){
 let list=tasks.filter(t=>t.progress<100 && t.deadline);
-if(!list.length){$("recommend").innerText="OK";return;}
-let best=list[0];
-$("recommend").innerHTML=`🔥 今やるべき<br><b onclick="openEdit(${best.id})">${best.name}</b>`;
+if(!list.length){recommend.innerText="OK";return;}
+recommend.innerHTML=`🔥 ${list[0].name}`;
 }
 
 /* 今週 */
 function renderWeek(){
 let now=new Date();
+
 let list=tasks.filter(t=>{
 if(!t.deadline)return false;
 let d=new Date(t.deadline);
 let diff=(d-now)/86400000;
-return diff>=0 && diff<=7;
+return diff>=0&&diff<=7;
 });
-$("week").innerHTML=list.map(t=>`${t.deadline} ${t.name}`).join("<br>")||"なし";
+
+week.innerHTML=list.map(t=>t.name).join("<br>")||"なし";
 }
 
 /* モーダル */
@@ -324,26 +357,20 @@ t.progress=+m_progress.value;
 closeModal();save();
 }
 
-/* ドラッグ */
+/* DnD */
 function allowDrop(e){e.preventDefault();}
-
-function drop(e,status){
+function drop(e,s){
 let id=+e.dataTransfer.getData("id");
 let t=tasks.find(x=>x.id==id);
 
-t.status=status;
-
-if(status==="完了"){t.progress=100;}
-else if(status==="未着手"){t.progress=0;}
-else if(t.progress==0){t.progress=10;}
+if(s==="完了")t.progress=100;
+else if(s==="未着手")t.progress=0;
+else if(t.progress===0)t.progress=10;
 
 save();
 }
 
 /* UI */
-function toggleDone(){showDone=!showDone;render();}
-function del(id){tasks=tasks.filter(t=>t.id!=id);save();}
-
 function viewTable(){
 tableView.style.display="block";
 kanbanView.style.display="none";
@@ -358,6 +385,9 @@ btnKanban.classList.add("active-tab");
 btnTable.classList.remove("active-tab");
 }
 
+function toggleDone(){showDone=!showDone;render();}
+function del(id){tasks=tasks.filter(t=>t.id!=id);save();}
+
 /* 色 */
 function getColor(t){
 if(!t.deadline)return "#374151";
@@ -368,17 +398,19 @@ if(d<2)return "#92400e";
 return "#1f2937";
 }
 
-/* キー操作 */
+/* キー */
 document.addEventListener("keydown",e=>{
 if(e.key==="Escape")closeModal();
 if(e.key==="Enter" && document.activeElement.id==="name"){
-e.preventDefault();addBtn.click();}
+e.preventDefault();addBtn.click();
+}
 });
 
 viewTable();
 render();
 recommend();
 renderWeek();
+
 </script>
 </body>
 </html>
