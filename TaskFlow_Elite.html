@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -12,6 +11,7 @@
 --border:#1f2937;
 --text:#e5e7eb;
 --muted:#9ca3af;
+--accent:#3b82f6;
 }
 
 body{
@@ -21,14 +21,24 @@ color:var(--text);
 font-family:Segoe UI,Inter;
 }
 
-.wrap{max-width:900px;margin:auto;padding:20px;}
+.wrap{max-width:1100px;margin:auto;padding:20px;}
 
 .card{
 background:var(--panel);
 border:1px solid var(--border);
 border-radius:12px;
-padding:14px;
-margin-bottom:12px;
+padding:16px;
+margin-bottom:14px;
+}
+
+h3{margin:4px 0 10px 0;}
+
+input,select{
+background:#0f172a;
+border:1px solid var(--border);
+color:white;
+padding:6px;
+border-radius:6px;
 }
 
 button{
@@ -41,84 +51,122 @@ cursor:pointer;
 }
 button:hover{background:#374151;}
 
-input,select{
-background:#0f172a;
-border:1px solid var(--border);
-color:white;
-padding:6px;
-border-radius:6px;
+table{
+width:100%;
+border-collapse:collapse;
+font-size:14px;
 }
 
-.small{font-size:12px;color:var(--muted);}
+th{
+color:var(--muted);
+font-weight:500;
+text-align:left;
+padding:8px;
+}
 
-/* タスクカード */
+td{
+border-top:1px solid var(--border);
+padding:10px;
+}
+
+tr:hover{background:#1f2937;}
+
+.badge{
+padding:2px 6px;
+border-radius:999px;
+font-size:12px;
+}
+
+.高{background:#7f1d1d;}
+.中{background:#78350f;}
+.低{background:#14532d;}
+
 .task{
-padding:12px;
-margin-bottom:10px;
-border-radius:10px;
-border:1px solid var(--border);
+padding:8px;
+margin:5px;
+border-radius:8px;
+cursor:grab;
 }
-
-.task-title{font-weight:bold;font-size:16px;margin-bottom:4px;}
-.task-row{display:flex;justify-content:space-between;align-items:center;margin-top:6px;}
-
-.progress{
-height:6px;
-background:#1f2937;
-border-radius:6px;
-overflow:hidden;
-}
-.progress-bar{
-height:100%;
-background:#3b82f6;
-}
-
-/* 状態色 */
-.red{color:#ef4444;}
-.orange{color:#f97316;}
-.yellow{color:#facc15;}
-.green{color:#22c55e;}
-.gray{color:#6b7280;}
 
 .kanban{
 display:none;
-grid-template-columns:repeat(3,1fr);
+grid-template-columns:repeat(4,1fr);
 gap:10px;
 }
+
+.small{font-size:12px;color:var(--muted);}
 </style>
-
 </head>
-<body>
 
+<body>
 <div class="wrap">
 
 <h2>🤖 TaskFlow AI Pro</h2>
 
-<div class="card" id="recommend"></div>
-
+<!-- AI -->
 <div class="card">
-<b>📆 今週</b>
-<div id="week"></div>
+<div id="recommend"></div>
 </div>
 
+<!-- 今週 -->
+<div class="card">
+<b>📆 今週</b>
+<div id="weekTasks"></div>
+</div>
+
+<!-- 入力 -->
 <div class="card">
 <input id="name" placeholder="タスク">
 <select id="priority"><option>高</option><option>中</option><option>低</option></select>
 <input id="deadline" type="date">
 <input id="estimate" type="number" placeholder="日数">
+<input id="progressNum" value="0">
 <input id="memo" placeholder="メモ">
-<button onclick="add()">追加</button>
+<button id="addBtn">追加</button>
 </div>
 
+<!-- 操作 -->
 <div class="card">
-<button onclick="ai()">AI整理</button>
-<button onclick="viewList()">一覧</button>
+<button id="aiBtn">AI整理</button>
+<button onclick="viewTable()">一覧</button>
 <button onclick="viewKanban()">カンバン</button>
 </div>
 
-<div id="list"></div>
+<!-- 一覧 -->
+<div id="tableView" class="card">
+<table>
+<thead>
+<tr>
+<th>タスク</th>
+<th>優先</th>
+<th>状態</th>
+<th>日数</th>
+<th>期限</th>
+<th>残</th>
+<th>進捗</th>
+<th>メモ</th>
+<th></th>
+</tr>
+</thead>
+<tbody id="tbody"></tbody>
+</table>
+</div>
 
-<div id="kanban" class="kanban">
+<!-- バックログ -->
+<div class="card">
+<h3>🗂 バックログ</h3>
+<table><tbody id="backlogList"></tbody></table>
+</div>
+
+<!-- 完了 -->
+<div class="card">
+<h3>✅ 完了</h3>
+<table><tbody id="doneList"></tbody></table>
+</div>
+
+<!-- カンバン -->
+<div id="kanbanView" class="kanban">
+
 <div class="card" ondrop="drop(event,'未着手')" ondragover="allowDrop(event)">
 <h4>未着手</h4><div id="todo"></div></div>
 
@@ -127,226 +175,257 @@ gap:10px;
 
 <div class="card" ondrop="drop(event,'待機')" ondragover="allowDrop(event)">
 <h4>待機</h4><div id="waiting"></div></div>
+
+<div class="card" ondrop="drop(event,'完了')" ondragover="allowDrop(event)">
+<h4>完了（最近）</h4><div id="kanbanDone"></div></div>
+
 </div>
 
+<!-- ログ -->
 <div class="card">
-<h3>🕓ログ</h3>
-<div id="log" class="small"></div>
+<h3>🕓 ログ</h3>
+<div id="logList" class="small"></div>
 </div>
 
 </div>
 
 <script>
-
 const $=id=>document.getElementById(id);
 
-let tasks=JSON.parse(localStorage.getItem("tasks")||"[]");
-let logs=JSON.parse(localStorage.getItem("logs")||"[]");
+let tasks=JSON.parse(localStorage.getItem('tasks')||'[]');
+let logs=JSON.parse(localStorage.getItem('logs')||'[]');
 
+/* 保存 */
 function save(){
-localStorage.setItem("tasks",JSON.stringify(tasks));
-render();
-recommend();
-week();
-renderLog();
+localStorage.setItem('tasks',JSON.stringify(tasks));
+render();recommend();renderWeek();renderLogs();
 }
 
-function log(t){
-logs.unshift(new Date().toLocaleString()+" "+t);
-logs=logs.slice(0,50);
-localStorage.setItem("logs",JSON.stringify(logs));
+/* ログ */
+function addLog(text){
+logs.unshift({time:new Date().toLocaleString(),text});
+logs=logs.slice(0,30);
+localStorage.setItem('logs',JSON.stringify(logs));
 }
 
-/* スコア（軽量版） */
-function analyze(t){
-let score=0,reasons=[],now=new Date();
+/* 追加 */
+$("addBtn").onclick=()=>{
+if(!$("name").value) return;
 
-if(t.progress<100){score+=100;reasons.push("未完了");}
-
-if(!t.deadline){
-score-=120;
-reasons.push("期限なし");
-return{score,reasons};
-}
-
-let d=(new Date(t.deadline)-now)/86400000;
-
-score+=30-d;
-reasons.push(`残${Math.round(d)}日`);
-
-if(d<0){score+=100;reasons.push("遅延");}
-else if(d<1){score+=40;reasons.push("締切直前");}
-
-if(t.estimate>d){
-score+=(t.estimate-d)*20;
-reasons.push("工数不足");
-}
-
-score+=(100-(t.progress||0))*0.5;
-
-if(t.priority==="高"){
-score+=30;
-reasons.push("高優先");
-}
-
-return{score,reasons};
-}
-
-function status(t){
-let d=t.deadline?(new Date(t.deadline)-new Date())/86400000:null;
-
-if(t.progress===100)return["完了","green"];
-if(!t.deadline)return["backlog","gray"];
-if(d<0)return["遅延","red"];
-if(t.estimate>d)return["危険","orange"];
-if(d<2)return["注意","yellow"];
-return["正常","green"];
-}
-
-function add(){
-if(!$("name").value)return;
-
-tasks.push({
+let t={
 id:Date.now(),
 name:$("name").value,
 priority:$("priority").value,
 deadline:$("deadline").value,
 estimate:+$("estimate").value||1,
-progress:0,
+progress:+$("progressNum").value||0,
 memo:$("memo").value,
 status:"未着手"
+};
+
+tasks.push(t);
+addLog("追加："+t.name);
+save();
+};
+
+/* AI */
+function calcScore(t){
+let s=0,now=new Date();
+
+if(t.progress<100)s+=100;
+if(!t.deadline)s-=120;
+
+if(t.deadline){
+let d=(new Date(t.deadline)-now)/86400000;
+s+=30-d;
+if(t.estimate>d)s+=(t.estimate-d)*20;
+}
+
+s+=(100-t.progress)*.5;
+if(t.priority=="高")s+=30;
+
+return s;
+}
+
+$("aiBtn").onclick=()=>{
+tasks.sort((a,b)=>{
+if(!a.deadline&&b.deadline)return 1;
+if(a.deadline&&!b.deadline)return -1;
+return calcScore(b)-calcScore(a);
 });
-
-log("追加："+$("name").value);
 save();
+};
+
+/* 状態 */
+function statusLabel(t){
+if(t.status==="待機") return "待機";
+if(t.progress===100) return "完了";
+
+if(!t.deadline) return "低";
+
+let d=(new Date(t.deadline)-new Date())/86400000;
+
+if(d<0) return "<span style='color:#ef4444'>遅延</span>";
+if(t.estimate>d) return "<span style='color:#f97316'>危険</span>";
+if(d<2) return "<span style='color:#facc15'>注意</span>";
+
+return "正常";
 }
 
-function ai(){
-tasks.sort((a,b)=>analyze(b).score-analyze(a).score);
-log("AI整理");
-save();
+function remain(t){
+return Math.round(t.estimate*(1-t.progress/100));
 }
 
+/* カンバン色 */
+function getColor(t){
+let now=new Date();
+
+if(t.deadline){
+let d=(new Date(t.deadline)-now)/86400000;
+if(d<0)return "#7f1d1d";
+if(t.estimate>d)return "#78350f";
+if(d<2)return "#92400e";
+}
+return "#1f2937";
+}
+
+/* 完了期限 */
+function recentDone(t){
+if(!t.completedAt)return false;
+return (new Date()-new Date(t.completedAt))<7*86400000;
+}
+
+/* 推薦 */
 function recommend(){
-let list=tasks.filter(t=>t.deadline&&t.progress<100);
-
-if(!list.length){
-$("recommend").innerText="OK";
-return;
-}
-
-let best=list.sort((a,b)=>analyze(b).score-analyze(a).score)[0];
-let a=analyze(best);
+let list=tasks.filter(t=>t.deadline && t.progress<100);
+if(!list.length){$("recommend").innerText="OK";return;}
+let best=list.sort((a,b)=>calcScore(b)-calcScore(a))[0];
 
 $("recommend").innerHTML=
-`🔥 今やるべき<br>
-<b>${best.name}</b>
-<div class="small">${a.reasons.join(" / ")}</div>`;
+`<div class="small">🔥 今やるべき</div>
+<b>${best.name}</b>`;
 }
 
-function week(){
+/* 今週 */
+function renderWeek(){
 let now=new Date();
 
 let list=tasks.filter(t=>{
 if(!t.deadline)return false;
 let d=new Date(t.deadline);
-return (d-now)/86400000<=7;
+let diff=(d-now)/86400000;
+return diff>=0 && diff<=7;
 });
 
-let total=list.reduce((s,t)=>s+t.estimate,0);
-
-$("week").innerHTML=
-`合計工数：${total}日<br>
-${list.map(t=>t.name).join("<br>")||"なし"}`;
+$("weekTasks").innerHTML=list.map(t=>`${t.deadline} ${t.name}`).join("<br>")||"なし";
 }
 
+/* render */
 function render(){
 
-$("list").innerHTML="";
-["todo","doing","waiting"].forEach(id=>$(id).innerHTML="");
+$("tbody").innerHTML="";
+$("doneList").innerHTML="";
+$("backlogList").innerHTML="";
+["todo","doing","waiting","kanbanDone"].forEach(id=>$(id).innerHTML="");
 
 tasks.forEach(t=>{
 
-let a=analyze(t);
-let st=status(t);
-
-let card=document.createElement("div");
-card.className="task";
-
-card.innerHTML=
-`
-<div class="task-title">${t.name}</div>
-
-<div class="${st[1]}">${st[0]}</div>
-
-<div class="task-row small">
-<span>${a.reasons.join(" / ")}</span>
-<span>${t.priority==="高"?"🔥":t.priority==="中"?"⚡":"・"}</span>
-</div>
-
-<div class="task-row">
-<span>残${Math.round(t.estimate*(1-(t.progress||0)/100))}日</span>
-<span>${t.progress||0}%</span>
-</div>
-
-<div class="progress">
-<div class="progress-bar" style="width:${t.progress||0}%"></div>
-</div>
+let row=`
+<tr>
+<td>${t.name}</td>
+<td><span class="badge ${t.priority}">${t.priority}</span></td>
+<td>${statusLabel(t)}</td>
+<td>${t.estimate||""}</td>
+<td>${t.deadline||""}</td>
+<td>${remain(t)}</td>
+<td>
+<input type="range" value="${t.progress}" 
+oninput="updateProgress(${t.id},this.value)">
+${t.progress}%
+</td>
+<td class="small">${t.memo||""}</td>
+<td><button onclick="del(${t.id})">×</button></td>
+</tr>
 `;
 
-$("list").appendChild(card);
+if(!t.deadline) $("backlogList").innerHTML+=row;
+else if(t.progress==100) $("doneList").innerHTML+=row;
+else $("tbody").innerHTML+=row;
 
 /* カンバン */
-let k=document.createElement("div");
-k.className="task";
-k.textContent=`${t.name} (${t.progress||0}%)`;
-k.draggable=true;
-k.ondragstart=e=>e.dataTransfer.setData("id",t.id);
+let c=document.createElement("div");
+c.className="task";
+c.style.background=getColor(t);
+c.textContent=`${t.name} (${t.progress}%)`;
+c.draggable=true;
+c.ondragstart=e=>e.dataTransfer.setData("id",t.id);
 
-if(t.status!=="完了"){
-let m={未着手:"todo",進行中:"doing",待機:"waiting"}[t.status];
-if(m) $(m).appendChild(k);
+if(t.status==="完了" && recentDone(t)){
+$("kanbanDone").appendChild(c);
+}else if(t.status!=="完了"){
+let col={未着手:"todo",進行中:"doing",待機:"waiting"}[t.status];
+$(col).appendChild(c);
 }
 
 });
 
 }
 
-function renderLog(){
-$("log").innerHTML=logs.join("<br>");
+/* 更新 */
+function updateProgress(id,v){
+let t=tasks.find(x=>x.id==id);
+t.progress=+v;
+
+if(v==100){
+t.status="完了";
+t.completedAt=new Date().toISOString();
+addLog("完了："+t.name);
+}
+else if(v==0)t.status="未着手";
+else t.status="進行中";
+
+save();
 }
 
+/* 削除 */
+function del(id){
+let t=tasks.find(x=>x.id==id);
+addLog("削除："+t.name);
+tasks=tasks.filter(x=>x.id!=id);
+save();
+}
+
+/* DnD */
 function allowDrop(e){e.preventDefault();}
 
 function drop(e,status){
 let id=+e.dataTransfer.getData("id");
 let t=tasks.find(x=>x.id==id);
+
 t.status=status;
-log(`状態変更：${t.name}→${status}`);
 
 if(status==="完了"){
 t.progress=100;
-log("完了："+t.name);
+t.completedAt=new Date().toISOString();
+addLog("完了："+t.name);
 }
+if(status==="未着手") t.progress=0;
 
 save();
 }
 
+function viewTable(){
+$("tableView").style.display="block";
+$("kanbanView").style.display="none";
+}
+
 function viewKanban(){
-$("kanban").style.display="grid";
-$("list").style.display="none";
+$("tableView").style.display="none";
+$("kanbanView").style.display="grid";
 }
 
-function viewList(){
-$("kanban").style.display="none";
-$("list").style.display="block";
-}
-
-render();
-recommend();
-week();
-renderLog();
-
+/* init */
+render();recommend();renderWeek();renderLogs();
 </script>
 
 </body>
