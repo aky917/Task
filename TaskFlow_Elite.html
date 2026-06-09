@@ -1,25 +1,39 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>TaskFlow AI Pro Ultimate</title>
+<title>TaskFlow AI Pro</title>
 
 <style>
 body{background:#0b1020;color:#e5e7eb;font-family:Segoe UI;margin:0}
 .wrap{max-width:1100px;margin:auto;padding:20px}
 .card{background:#111827;border:1px solid #1f2937;border-radius:12px;padding:16px;margin-bottom:14px}
-input,select,button{background:#0f172a;border:1px solid #1f2937;color:white;padding:6px;border-radius:6px}
+
+button,input,select{
+background:#0f172a;border:1px solid #1f2937;color:white;padding:6px;border-radius:6px
+}
+
 table{width:100%;border-collapse:collapse}
 td,th{padding:8px;border-top:1px solid #1f2937}
+
 .badge{padding:2px 6px;border-radius:999px}
-.高{background:#7f1d1d}.中{background:#78350f}.低{background:#14532d}
+.高{background:#7f1d1d}
+.中{background:#78350f}
+.低{background:#14532d}
 
 .table-scroll{max-height:350px;overflow:auto}
 .table-scroll thead th{position:sticky;top:0;background:#111827}
 
-.task{padding:8px;margin:6px;border-radius:8px;cursor:pointer;font-size:13px}
-.kanban{display:none;grid-template-columns:repeat(4,1fr);gap:10px}
+.task{
+padding:8px;margin:6px;border-radius:8px;cursor:pointer;font-size:13px
+}
+
+.kanban{
+display:none;
+grid-template-columns:repeat(4,1fr);
+gap:10px;
+}
+
 .small{font-size:11px;color:#9ca3af}
 </style>
 </head>
@@ -27,30 +41,20 @@ td,th{padding:8px;border-top:1px solid #1f2937}
 <body>
 <div class="wrap">
 
-<h2>🤖 TaskFlow AI Pro Ultimate</h2>
-
-<!-- AI -->
-<div class="card">
-<div id="recommend"></div>
-</div>
-
-<!-- 今週 -->
-<div class="card">
-<b>📆 今週</b>
-<div id="week"></div>
-</div>
+<h2>🤖 TaskFlow</h2>
 
 <!-- 入力 -->
 <div class="card">
 <input id="name" placeholder="タスク">
-<select id="priority"><option>高</option><option>中</option><option>低</option></select>
+<select id="priority">
+<option>高</option><option>中</option><option>低</option>
+</select>
 <input id="deadline" type="date">
 <input id="estimate" type="number" placeholder="日数">
-<input id="memo" placeholder="メモ">
 <button id="addBtn">追加</button>
 </div>
 
-<!-- ナビ -->
+<!-- 切替 -->
 <div class="card">
 <button onclick="viewTable()">一覧</button>
 <button onclick="viewKanban()">カンバン</button>
@@ -60,29 +64,73 @@ td,th{padding:8px;border-top:1px solid #1f2937}
 <div id="tableView" class="card">
 
 <h3>📋 未完了</h3>
-
 <div class="table-scroll">
 <table>
 <thead>
 <tr>
-<th>タスク</th><th>優先</th><th>状態</th><th>日数</th><th>期限</th><th>進捗</th><th></th>
+<th>タスク</th><th>優先</th><th>期限</th><th>進捗</th><th></th>
 </tr>
 </thead>
 <tbody id="tbody"></tbody>
 </table>
 </div>
 
-<h3 onclick="toggleDone()">✅ 完了 (<span id="doneCount"></span>)</h3>
-<div id="doneWrap"><table><tbody id="done"></tbody></table></div>
+<h3 onclick="toggleDone()" style="cursor:pointer">
+✅ 完了 (<span id="doneCount"></span>)
+</h3>
+<div id="doneWrap">
+<table><tbody id="done"></tbody></table>
+</div>
 
 </div>
 
 <!-- カンバン -->
 <div id="kanbanView" class="kanban">
-<div class="card"><h4>未着手</h4><div id="todo"></div></div>
-<div class="card"><h4>進行中</h4><div id="doing"></div></div>
-<div class="card"><h4>待機</h4><div id="waiting"></div></div>
-<div class="card"><h4>完了</h4><div id="doneK"></div></div>
+
+<div class="card">
+<h4>未着手</h4>
+<div id="todo"></div>
+</div>
+
+<div class="card">
+<h4>進行中</h4>
+<div id="doing"></div>
+</div>
+
+<div class="card">
+<h4>完了</h4>
+<div id="doneK"></div>
+</div>
+
+</div>
+
+<!-- 🔥 モーダル -->
+<div id="modal" style="
+display:none;position:fixed;top:0;left:0;width:100%;height:100%;
+background:rgba(0,0,0,0.7)">
+
+<div style="
+background:#111827;padding:20px;
+max-width:400px;margin:100px auto;border-radius:10px">
+
+<h3>タスク編集</h3>
+
+<input id="m_name" placeholder="タスク名"><br><br>
+
+<select id="m_priority">
+<option>高</option><option>中</option><option>低</option>
+</select><br><br>
+
+<input id="m_deadline" type="date"><br><br>
+
+<input id="m_estimate" type="number"><br><br>
+
+<input id="m_progress" type="number" min="0" max="100"><br><br>
+
+<button onclick="saveModal()">保存</button>
+<button onclick="closeModal()">閉じる</button>
+
+</div>
 </div>
 
 </div>
@@ -90,27 +138,15 @@ td,th{padding:8px;border-top:1px solid #1f2937}
 <script>
 
 const $=id=>document.getElementById(id);
+
 let tasks=JSON.parse(localStorage.getItem('tasks')||'[]');
 let showDone=false;
+let currentId=null;
 
 /* 保存 */
 function save(){
-tasks.sort((a,b)=>calcScore(b)-calcScore(a));
 localStorage.setItem('tasks',JSON.stringify(tasks));
-render();recommend();renderWeek();
-}
-
-/* AI */
-function calcScore(t){
-let s=100-t.progress;
-if(t.priority=="高")s+=30;
-if(!t.deadline)s-=50;
-if(t.deadline){
-let d=(new Date(t.deadline)-new Date())/86400000;
-s+=30-d;
-if(t.estimate>d)s+=40;
-}
-return s;
+render();
 }
 
 /* 追加 */
@@ -124,17 +160,15 @@ priority:priority.value,
 deadline:deadline.value,
 estimate:+estimate.value||1,
 progress:0,
-memo:memo.value,
-parentId:null,
-status:"未着手"
+parentId:null
 });
 
-["name","deadline","estimate","memo"].forEach(id=>$(id).value="");
+["name","deadline","estimate"].forEach(id=>$(id).value="");
 
 save();
 };
 
-/* 子追加 */
+/* 子タスク */
 function addChild(pid){
 let n=prompt("子タスク名");
 if(!n)return;
@@ -148,9 +182,7 @@ priority:p.priority,
 deadline:p.deadline,
 estimate:1,
 progress:0,
-memo:"",
-parentId:pid,
-status:"未着手"
+parentId:pid
 });
 
 save();
@@ -158,34 +190,39 @@ save();
 
 /* 描画 */
 function render(){
+
 tbody.innerHTML="";
 done.innerHTML="";
-["todo","doing","waiting","doneK"].forEach(id=>$(id).innerHTML="");
+["todo","doing","doneK"].forEach(id=>$(id).innerHTML="");
 
 let parents=tasks.filter(t=>!t.parentId);
 let children=tasks.filter(t=>t.parentId);
 
-let doneCnt=0;
+let doneCount=0;
 
 parents.forEach(p=>{
-draw(p,false);
-children.filter(c=>c.parentId===p.id)
-.forEach(c=>draw(c,true,p));
+
+drawRow(p,false);
+
+children
+.filter(c=>c.parentId===p.id)
+.forEach(c=>drawRow(c,true,p));
+
 });
 
-function draw(t,isChild,parent=null){
+/* 行描画 */
+function drawRow(t,isChild,parent){
 
+let indent=isChild?"padding-left:20px":"";
 let label=isChild?"└ "+t.name:t.name;
-let indent=isChild?"style='padding-left:25px'":"";
 
 let row=`
-<tr ${indent}>
-<td onclick="edit(this,${t.id})">${label}</td>
+<tr style="${indent}">
+<td onclick="openEdit(${t.id})">${label}</td>
 <td><span class="badge ${t.priority}">${t.priority}</span></td>
-<td>${status(t)}</td>
-<td>${t.estimate}</td>
-<td>${t.deadline||""}</td>
-<td>${t.progress}%</td>
+<td onclick="openEdit(${t.id})">${t.deadline||""}</td>
+<td onclick="openEdit(${t.id})">${t.progress}%</td>
+
 <td>
 <button onclick="addChild(${t.id})">＋</button>
 <button onclick="del(${t.id})">×</button>
@@ -194,7 +231,8 @@ let row=`
 `;
 
 if(t.progress==100){
-doneCnt++;done.innerHTML+=row;
+done.innerHTML+=row;
+doneCount++;
 }else{
 tbody.innerHTML+=row;
 }
@@ -209,7 +247,7 @@ c.style.background=getColor(t);
 c.innerHTML=`
 <div class="small">${parent.name}</div>
 <b>${t.name}</b>
-<div class="small">${t.deadline||""}・${t.priority}</div>
+<div class="small">${t.priority} ${t.deadline||""}</div>
 `;
 
 c.onclick=()=>openEdit(t.id);
@@ -221,37 +259,43 @@ $(col).appendChild(c);
 
 }
 
-doneCount.innerText=doneCnt;
-doneWrap.style.display=showDone?"block":"none";
+$("doneCount").innerText=doneCount;
+$("doneWrap").style.display=showDone?"block":"none";
+
 }
 
-/* 状態 */
-function status(t){
-if(!t.deadline)return "バックログ";
-let d=(new Date(t.deadline)-new Date())/86400000;
-if(d<0)return "遅延";
-if(t.estimate>d)return "危険";
-if(d<2)return "注意";
-return "正常";
+/* モーダル */
+function openEdit(id){
+
+let t=tasks.find(x=>x.id==id);
+
+currentId=id;
+
+$("m_name").value=t.name;
+$("m_priority").value=t.priority;
+$("m_deadline").value=t.deadline||"";
+$("m_estimate").value=t.estimate||0;
+$("m_progress").value=t.progress;
+
+$("modal").style.display="block";
 }
 
-/* 色 */
-function getColor(t){
-let d=(new Date(t.deadline)-new Date())/86400000;
-if(!t.deadline)return "#374151";
-if(d<0)return "#7f1d1d";
-if(t.estimate>d)return "#78350f";
-if(d<2)return "#92400e";
-return "#1f2937";
+function closeModal(){
+$("modal").style.display="none";
 }
 
-/* 編集 */
-function edit(td,id){
-let v=td.innerText;
-td.innerHTML=`<input value="${v}" onblur="update(${id},this.value)" autofocus>`;
-}
-function update(id,v){
-tasks.find(t=>t.id==id).name=v;
+/* 保存 */
+function saveModal(){
+
+let t=tasks.find(x=>x.id==currentId);
+
+t.name=$("m_name").value;
+t.priority=$("m_priority").value;
+t.deadline=$("m_deadline").value;
+t.estimate=+$("m_estimate").value;
+t.progress=+$("m_progress").value;
+
+closeModal();
 save();
 }
 
@@ -266,25 +310,23 @@ function toggleDone(){showDone=!showDone;render();}
 function viewTable(){tableView.style.display="block";kanbanView.style.display="none";}
 function viewKanban(){tableView.style.display="none";kanbanView.style.display="grid";}
 
-/* AI表示 */
-function recommend(){
-let best=tasks[0];
-$("recommend").innerHTML=best?`🔥 今やるべき：${best.name}`:"OK";
+/* 色 */
+function getColor(t){
+if(!t.deadline)return "#374151";
+let d=new Date(t.deadline)-new Date();
+if(d<0)return "#7f1d1d";
+if(d<86400000*2)return "#92400e";
+return "#1f2937";
 }
 
-/* 今週 */
-function renderWeek(){
-let now=new Date();
-let list=tasks.filter(t=>{
-if(!t.deadline)return;
-let d=new Date(t.deadline);
-return d-now>=0 && d-now<7*86400000;
+/* ESC閉じる */
+document.addEventListener("keydown",e=>{
+if(e.key==="Escape") closeModal();
 });
-$("week").innerHTML=list.map(t=>t.name).join("<br>")||"なし";
-}
 
-render();recommend();renderWeek();
+render();
 
 </script>
+
 </body>
 </html>
