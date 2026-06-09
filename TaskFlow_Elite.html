@@ -10,7 +10,6 @@
 --border:#1f2937;
 --text:#e5e7eb;
 --muted:#9ca3af;
---accent:#3b82f6;
 }
 body{
 margin:0;
@@ -26,7 +25,6 @@ border-radius:12px;
 padding:16px;
 margin-bottom:14px;
 }
-h3{margin:4px 0 10px 0;}
 input,select{
 background:#0f172a;
 border:1px solid var(--border);
@@ -48,17 +46,7 @@ width:100%;
 border-collapse:collapse;
 font-size:14px;
 }
-th{
-color:var(--muted);
-font-weight:500;
-text-align:left;
-padding:8px;
-}
-td{
-border-top:1px solid var(--border);
-padding:10px;
-}
-tr:hover{background:#1f2937;}
+td,th{padding:10px;border-top:1px solid var(--border);}
 .badge{
 padding:2px 6px;
 border-radius:999px;
@@ -85,18 +73,15 @@ gap:10px;
 <div class="wrap">
 <h2>🤖 TaskFlow AI Pro</h2>
 
-<!-- AI -->
 <div class="card">
 <div id="recommend"></div>
 </div>
 
-<!-- 今週 -->
 <div class="card">
 <b>📆 今週</b>
 <div id="weekTasks"></div>
 </div>
 
-<!-- 入力 -->
 <div class="card">
 <input id="name" placeholder="タスク">
 <select id="priority"><option>高</option><option>中</option><option>低</option></select>
@@ -107,14 +92,12 @@ gap:10px;
 <button id="addBtn">追加</button>
 </div>
 
-<!-- 操作 -->
 <div class="card">
 <button id="aiBtn">AI整理</button>
 <button onclick="viewTable()">一覧</button>
 <button onclick="viewKanban()">カンバン</button>
 </div>
 
-<!-- 一覧 -->
 <div id="tableView" class="card">
 <table>
 <thead>
@@ -134,13 +117,6 @@ gap:10px;
 </table>
 </div>
 
-<!-- 完了 -->
-<div class="card">
-<h3>✅ 完了</h3>
-<table><tbody id="doneList"></tbody></table>
-</div>
-
-<!-- カンバン -->
 <div id="kanbanView" class="kanban">
 <div class="card" ondrop="drop(event,'未着手')" ondragover="allowDrop(event)">
 <h4>未着手</h4><div id="todo"></div></div>
@@ -155,7 +131,6 @@ gap:10px;
 <h4>完了（最近）</h4><div id="kanbanDone"></div></div>
 </div>
 
-<!-- ログ -->
 <div class="card">
 <h3>🕓 ログ</h3>
 <div id="logList" class="small"></div>
@@ -270,12 +245,11 @@ $("weekTasks").innerHTML=list.map(t=>`${t.deadline} ${t.name}`).join("<br>")||"�
 
 function render(){
 $("tbody").innerHTML="";
-$("doneList").innerHTML="";
 ["todo","doing","waiting","kanbanDone"].forEach(id=>$(id).innerHTML="");
 
 tasks.forEach(t=>{
 let row=`
-<tr>
+<tr ${t.progress==100?"style='opacity:0.5'":""}>
 <td>${t.name}</td>
 <td><span class="badge ${t.priority}">${t.priority}</span></td>
 <td>${statusLabel(t)}</td>
@@ -291,8 +265,7 @@ ${t.progress}%
 </tr>
 `;
 
-if(t.progress==100) $("doneList").innerHTML+=row;
-else $("tbody").innerHTML+=row;
+$("tbody").innerHTML+=row;
 
 let c=document.createElement("div");
 c.className="task";
