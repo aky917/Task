@@ -1,9 +1,8 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>TaskFlow Ultimate FINAL</title>
+<title>TaskFlow Final</title>
 
 <style>
 body{background:#0b1020;color:#e5e7eb;font-family:Segoe UI;margin:0}
@@ -28,28 +27,24 @@ table-layout:fixed;
 th,td{padding:8px;border-top:1px solid #1f2937}
 th{color:#9ca3af;text-align:left}
 
-/* ヘッダー固定 */
-#tableView{max-height:600px;overflow:auto}
-thead th{
-position:sticky;top:0;background:#111827;
-z-index:10;border-bottom:1px solid #1f2937;
+tbody tr:hover{
+background:#1f2937;
+cursor:pointer;
 }
 
-/* 列固定 */
-th:nth-child(1),td:nth-child(1){width:30%}
-th:nth-child(2),td:nth-child(2){width:8%}
+th:nth-child(1),td:nth-child(1){width:32%}
+th:nth-child(2),td:nth-child(2){width:5%;text-align:center}
 th:nth-child(3),td:nth-child(3){width:10%}
 th:nth-child(4),td:nth-child(4){width:12%}
 th:nth-child(5),td:nth-child(5){width:15%}
 th:nth-child(6),td:nth-child(6){width:20%}
-th:nth-child(7),td:nth-child(7){width:5%}
+th:nth-child(7),td:nth-child(7){width:4%}
 
 td{
 overflow:hidden;
 text-overflow:ellipsis;
 white-space:nowrap;
 }
-
 td:nth-child(6){white-space:normal}
 
 .kanban{
@@ -69,8 +64,8 @@ cursor:pointer;font-size:13px
 .small{font-size:11px;color:#9ca3af}
 .active-tab{background:#3b82f6}
 </style>
-
 </head>
+
 <body>
 <div class="wrap">
 
@@ -96,7 +91,7 @@ cursor:pointer;font-size:13px
 </div>
 
 <!-- 一覧 -->
-<div id="tableView" class="card">
+<div class="card" id="tableView">
 <table>
 <thead>
 <tr>
@@ -160,6 +155,25 @@ let tasks=JSON.parse(localStorage.getItem('tasks')||'[]');
 let currentId=null;
 let showDone=false;
 
+/* 追加（修正済み） */
+$("addBtn").onclick = ()=>{
+if(!$("name").value.trim()) return;
+
+tasks.push({
+id:Date.now(),
+name:$("name").value,
+priority:$("priority").value,
+deadline:$("deadline").value,
+estimate:+$("estimate").value || 1,
+progress:0,
+memo:$("memo").value,
+status:"未着手"
+});
+
+["name","deadline","estimate","memo"].forEach(id=>$(id).value="");
+save();
+};
+
 /* AI */
 function calcScore(t){
 if(!t.deadline) return -9999;
@@ -183,7 +197,7 @@ if(d<2) return "<span style='color:#facc15'>注意</span>";
 return "正常";
 }
 
-/* 残日数 */
+/* 残 */
 function remain(t){
 let r=Math.round(t.estimate*(1-t.progress/100));
 return r<0?`<span style="color:#ef4444">${r}</span>`:r;
@@ -194,7 +208,6 @@ let r=Math.round(t.estimate*(1-t.progress/100));
 return r<0?`<span style="color:#ef4444">残${r}日</span>`:`残${r}日`;
 }
 
-/* 状態アイコン */
 function statusIcon(t){
 if(t.status==="待機") return "⏸";
 let d=(new Date(t.deadline)-new Date())/86400000;
@@ -220,23 +233,24 @@ h-=use;
 todaySchedule.innerHTML=res.join("<br>")||"なし";
 }
 
-/* 7日フィルタ */
+/* 7日 */
 function isActive(t){
 if(t.progress<100) return true;
 if(!t.doneAt) return true;
 return (Date.now()-t.doneAt)/86400000<7;
 }
 
-/* 描画 */
+/* 画面 */
 function render(){
 
 tbody.innerHTML="";
 done.innerHTML="";
+
 ["todo","doing","waiting","doneK"].forEach(id=>$(id).innerHTML="");
 
 tasks.sort((a,b)=>{
-if(!a.deadline && b.deadline) return 1;
-if(a.deadline && !b.deadline) return -1;
+if(!a.deadline && b.deadline)return 1;
+if(a.deadline && !b.deadline)return -1;
 return calcScore(b)-calcScore(a);
 });
 
@@ -326,7 +340,6 @@ function short(m){
 return !m?"":m.length>20?m.slice(0,20)+"...":m;
 }
 
-/* モーダル */
 function edit(id){
 currentId=id;
 let t=tasks.find(x=>x.id==id);
@@ -361,7 +374,6 @@ save();
 
 /* DnD */
 function allowDrop(e){e.preventDefault();}
-
 function drop(e,s){
 let id=+e.dataTransfer.getData("id");
 let t=tasks.find(x=>x.id==id);
@@ -394,7 +406,6 @@ showDone=!showDone;
 render();
 }
 
-/* 色 */
 function color(t){
 if(t.status==="待機") return "#1e3a8a";
 if(!t.deadline) return "#374151";
@@ -406,23 +417,14 @@ return "#1f2937";
 }
 
 /* UI */
-btnTable.onclick=()=>{
-tableView.style.display="block";
-kanbanView.style.display="none";
-};
-
-btnKanban.onclick=()=>{
-tableView.style.display="none";
-kanbanView.style.display="grid";
-};
-
-document.addEventListener("keydown",e=>{
-if(e.key==="Escape")closeModal();
-});
+btnTable.onclick=()=>{tableView.style.display="block";kanbanView.style.display="none";}
+btnKanban.onclick=()=>{tableView.style.display="none";kanbanView.style.display="grid";}
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal();});
 
 btnTable.click();
 render();
 
 </script>
+
 </body>
 </html>
