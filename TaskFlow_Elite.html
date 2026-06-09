@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -34,12 +33,12 @@ th:nth-child(7){width:4%}
 td{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 td:nth-child(6){white-space:normal}
 
-/* ✅ 優先（元色 + 小型） */
+/* ✅ 優先＝丸シンボル */
 .badge{
-  padding:0 5px;
-  border-radius:999px;
-  font-size:10px;
-  line-height:1.2;
+  display:inline-block;
+  width:12px;
+  height:12px;
+  border-radius:50%;
 }
 .高{background:#7f1d1d;}
 .中{background:#78350f;}
@@ -179,7 +178,6 @@ progress:0,
 memo:$("memo").value,
 status:"未着手"
 });
-
 ["name","deadline","estimate","memo"].forEach(i=>$(i).value="");
 save();
 };
@@ -224,11 +222,37 @@ return (da-a.estimate)-(db-b.estimate);
 });
 }
 
-/* 今日 */
+/* ✅ 今日（復旧版） */
 function renderToday(){
-let list=tasks.filter(t=>t.progress<100&&t.deadline);
-list.sort((a,b)=>new Date(a.deadline)-new Date(b.deadline));
-$("today").innerHTML=list.map(t=>t.name).join("<br>");
+
+  let list=tasks.filter(t=>t.progress<100 && t.deadline);
+
+  list.sort((a,b)=>{
+    let da=(new Date(a.deadline)-new Date())/86400000;
+    let db=(new Date(b.deadline)-new Date())/86400000;
+    return (da-a.estimate)-(db-b.estimate);
+  });
+
+  let h=6;
+  let res=[];
+
+  for(let t of list){
+
+    if(h<=0) break;
+
+    let remain=t.estimate*(1-t.progress/100);
+    let need=remain*6;
+
+    let use=Math.min(h,need);
+
+    if(use<=0) continue;
+
+    res.push(`・${t.name} (${Math.round(use)}h)`);
+
+    h-=use;
+  }
+
+  $("today").innerHTML=res.join("<br>")||"なし";
 }
 
 /* 描画 */
@@ -252,7 +276,7 @@ if(keyword &&
 let row=`
 <tr>
 <td onclick="edit(${t.id})">${t.name}</td>
-<td class="badge ${t.priority}">${t.priority}</td>
+<td><span class="badge ${t.priority}" title="${t.priority}"></span></td>
 <td>${status(t)}</td>
 <td>${t.deadline||""}</td>
 <td>${t.progress}%</td>
@@ -278,7 +302,7 @@ c.onclick=()=>edit(t.id);
 
 c.innerHTML=`
 <div class="small">
-<span class="badge ${t.priority}">${t.priority}</span>
+<span class="badge ${t.priority}"></span>
 ${t.deadline||""}
 </div>
 <b>${t.name}</b>
@@ -410,6 +434,5 @@ $("btnList").click();
 render();
 
 </script>
-
 </body>
 </html>
