@@ -25,47 +25,23 @@ border-radius:12px;
 padding:16px;
 margin-bottom:14px;
 }
-input,select{
+button,input,select{
 background:#0f172a;
 border:1px solid var(--border);
 color:white;
 padding:6px;
 border-radius:6px;
 }
-button{
-background:#1f2937;
-border:none;
-color:white;
-padding:6px 10px;
-border-radius:6px;
-cursor:pointer;
-}
+button{cursor:pointer;}
 button:hover{background:#374151;}
-table{
-width:100%;
-border-collapse:collapse;
-font-size:14px;
-}
+table{width:100%;border-collapse:collapse;}
 td,th{padding:10px;border-top:1px solid var(--border);}
-.badge{
-padding:2px 6px;
-border-radius:999px;
-font-size:12px;
-}
+.badge{padding:2px 6px;border-radius:999px;font-size:12px;}
 .高{background:#7f1d1d;}
 .中{background:#78350f;}
 .低{background:#14532d;}
-.task{
-padding:8px;
-margin:5px;
-border-radius:8px;
-cursor:grab;
-}
-.kanban{
-display:none;
-grid-template-columns:repeat(4,1fr);
-gap:10px;
-}
+.task{padding:8px;margin:5px;border-radius:8px;cursor:grab;}
+.kanban{display:none;grid-template-columns:repeat(4,1fr);gap:10px;}
 .small{font-size:12px;color:var(--muted);}
 </style>
 </head>
@@ -93,7 +69,7 @@ gap:10px;
 </div>
 
 <div class="card">
-<button id="aiBtn">AI整理</button>
+<button onclick="toggleDone()">未完了のみ</button>
 <button onclick="viewTable()">一覧</button>
 <button onclick="viewKanban()">カンバン</button>
 </div>
@@ -102,15 +78,9 @@ gap:10px;
 <table>
 <thead>
 <tr>
-<th>タスク</th>
-<th>優先</th>
-<th>状態</th>
-<th>日数</th>
-<th>期限</th>
-<th>残</th>
-<th>進捗</th>
-<th>メモ</th>
-<th></th>
+<th>タスク</th><th>優先</th><th>状態</th>
+<th>日数</th><th>期限</th><th>残</th>
+<th>進捗</th><th>メモ</th><th></th>
 </tr>
 </thead>
 <tbody id="tbody"></tbody>
@@ -142,18 +112,27 @@ gap:10px;
 const $=id=>document.getElementById(id);
 let tasks=JSON.parse(localStorage.getItem('tasks')||'[]');
 let logs=JSON.parse(localStorage.getItem('logs')||'[]');
+let hideDone=false;
 
+/* 保存（常にAIソート） */
 function save(){
+tasks.sort((a,b)=>{
+if(!a.deadline&&b.deadline)return 1;
+if(a.deadline&&!b.deadline)return -1;
+return calcScore(b)-calcScore(a);
+});
 localStorage.setItem('tasks',JSON.stringify(tasks));
 render();recommend();renderWeek();renderLogs();
 }
 
+/* ログ */
 function addLog(text){
 logs.unshift({time:new Date().toLocaleString(),text});
 logs=logs.slice(0,30);
 localStorage.setItem('logs',JSON.stringify(logs));
 }
 
+/* 追加 */
 $("addBtn").onclick=()=>{
 if(!$("name").value) return;
 let t={
@@ -168,9 +147,26 @@ status:"未着手"
 };
 tasks.push(t);
 addLog("追加："+t.name);
+
+/* 入力リセット */
+["name","deadline","estimate","memo"].forEach(id=>$(id).value="");
+$("progressNum").value=0;
+
 save();
 };
 
+/* Enter追加 */
+document.addEventListener("keydown",e=>{
+if(e.key==="Enter") $("addBtn").click();
+});
+
+/* フィルタ */
+function toggleDone(){
+hideDone=!hideDone;
+render();
+}
+
+/* AIスコア */
 function calcScore(t){
 let s=0,now=new Date();
 if(t.progress<100)s+=100;
@@ -185,15 +181,7 @@ if(t.priority=="高")s+=30;
 return s;
 }
 
-$("aiBtn").onclick=()=>{
-tasks.sort((a,b)=>{
-if(!a.deadline&&b.deadline)return 1;
-if(a.deadline&&!b.deadline)return -1;
-return calcScore(b)-calcScore(a);
-});
-save();
-};
-
+/* 状態 */
 function statusLabel(t){
 if(t.status==="待機") return "待機";
 if(t.progress===100) return "完了";
@@ -210,44 +198,45 @@ return Math.round(t.estimate*(1-t.progress/100));
 }
 
 function getColor(t){
-let now=new Date();
-if(t.deadline){
-let d=(new Date(t.deadline)-now)/86400000;
+if(!t.deadline) return "#374151";
+let d=(new Date(t.deadline)-new Date())/86400000;
 if(d<0)return "#7f1d1d";
 if(t.estimate>d)return "#78350f";
 if(d<2)return "#92400e";
-}
 return "#1f2937";
 }
 
 function recentDone(t){
-if(!t.completedAt)return false;
-return (new Date()-new Date(t.completedAt))<7*86400000;
+return t.completedAt && (new Date()-new Date(t.completedAt))<7*86400000;
 }
 
+/* AIおすすめ */
 function recommend(){
 let list=tasks.filter(t=>t.deadline && t.progress<100);
 if(!list.length){$("recommend").innerText="OK";return;}
-let best=list.sort((a,b)=>calcScore(b)-calcScore(a))[0];
-$("recommend").innerHTML=`<div class="small">🔥 今やるべき</div><b>${best.name}</b>`;
+let best=list[0];
+$("recommend").innerHTML=`<div class="small">🔥 今やるべき</div>
+<b onclick="focusTask(${best.id})" style="cursor:pointer">${best.name}</b>`;
 }
 
+/* 今週 */
 function renderWeek(){
 let now=new Date();
 let list=tasks.filter(t=>{
-if(!t.deadline)return false;
 let d=new Date(t.deadline);
-let diff=(d-now)/86400000;
-return diff>=0 && diff<=7;
+return t.deadline && (d-now)/86400000<=7 && (d-now)>=0;
 });
 $("weekTasks").innerHTML=list.map(t=>`${t.deadline} ${t.name}`).join("<br>")||"なし";
 }
 
+/* 描画 */
 function render(){
 $("tbody").innerHTML="";
 ["todo","doing","waiting","kanbanDone"].forEach(id=>$(id).innerHTML="");
 
 tasks.forEach(t=>{
+if(hideDone && t.progress==100) return;
+
 let row=`
 <tr ${t.progress==100?"style='opacity:0.5'":""}>
 <td>${t.name}</td>
@@ -258,15 +247,15 @@ let row=`
 <td>${remain(t)}</td>
 <td>
 <input type="range" value="${t.progress}" oninput="updateProgress(${t.id},this.value)">
+<button onclick="quickDone(${t.id})">✔</button>
 ${t.progress}%
 </td>
 <td class="small">${t.memo||""}</td>
 <td><button onclick="del(${t.id})">×</button></td>
-</tr>
-`;
-
+</tr>`;
 $("tbody").innerHTML+=row;
 
+/* カンバン */
 let c=document.createElement("div");
 c.className="task";
 c.style.background=getColor(t);
@@ -283,6 +272,7 @@ $(col).appendChild(c);
 });
 }
 
+/* 操作 */
 function updateProgress(id,v){
 let t=tasks.find(x=>x.id==id);
 t.progress=+v;
@@ -290,31 +280,37 @@ if(v==100){
 t.status="完了";
 t.completedAt=new Date().toISOString();
 addLog("完了："+t.name);
-}
-else if(v==0)t.status="未着手";
+}else if(v==0)t.status="未着手";
 else t.status="進行中";
 save();
 }
 
+function quickDone(id){
+updateProgress(id,100);
+}
+
 function del(id){
-let t=tasks.find(x=>x.id==id);
-addLog("削除："+t.name);
+addLog("削除："+tasks.find(x=>x.id==id).name);
 tasks=tasks.filter(x=>x.id!=id);
 save();
 }
 
 function allowDrop(e){e.preventDefault();}
 function drop(e,status){
-let id=+e.dataTransfer.getData("id");
-let t=tasks.find(x=>x.id==id);
+let t=tasks.find(x=>x.id==+e.dataTransfer.getData("id"));
 t.status=status;
-if(status==="完了"){
-t.progress=100;
-t.completedAt=new Date().toISOString();
-addLog("完了："+t.name);
-}
+if(status==="完了"){t.progress=100;addLog("完了："+t.name);}
 if(status==="未着手") t.progress=0;
 save();
+}
+
+function focusTask(id){
+viewTable();
+document.querySelectorAll("tr").forEach(tr=>{
+if(tr.innerText.includes(tasks.find(t=>t.id==id).name)){
+tr.style.background="#1f2937";
+}
+});
 }
 
 function viewTable(){
