@@ -1,70 +1,57 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>TaskFlow Ultimate Pro</title>
+<title>TaskFlow Stable Final</title>
 
 <style>
-body{background:#0b1020;color:#e5e7eb;font-family:Segoe UI;margin:0}
-.wrap{max-width:1800px;padding:20px 40px;margin:auto}
+body{background:#0b1020;color:#e5e7eb;font-family:sans-serif;margin:0}
+.wrap{max-width:1800px;margin:auto;padding:20px 40px}
 
-.card{
-background:#111827;border:1px solid #1f2937;
-border-radius:12px;padding:16px;margin-bottom:14px
-}
+.card{background:#111827;border:1px solid #1f2937;border-radius:10px;padding:14px;margin-bottom:12px}
 
 button,input,select,textarea{
-background:#0f172a;border:1px solid #1f2937;
-color:white;padding:6px;border-radius:6px
+background:#0f172a;border:1px solid #1f2937;color:white;padding:6px;border-radius:6px
 }
 
-table{width:100%;border-collapse:collapse;table-layout:fixed}
-th,td{padding:8px;border-top:1px solid #1f2937}
-th{color:#9ca3af;text-align:left}
+table{width:100%;table-layout:fixed;border-collapse:collapse}
+th,td{padding:6px;border-top:1px solid #1f2937}
+th{color:#aaa}
 
 tbody tr:hover{background:#1f2937;cursor:pointer}
 
-th:nth-child(1),td:nth-child(1){width:32%}
-th:nth-child(2),td:nth-child(2){width:5%;text-align:center}
-th:nth-child(3),td:nth-child(3){width:10%}
-th:nth-child(4),td:nth-child(4){width:12%}
-th:nth-child(5),td:nth-child(5){width:15%}
-th:nth-child(6),td:nth-child(6){width:20%}
-th:nth-child(7),td:nth-child(7){width:4%}
+th:nth-child(1){width:32%}
+th:nth-child(2){width:5%;text-align:center}
+th:nth-child(3){width:10%}
+th:nth-child(4){width:12%}
+th:nth-child(5){width:15%}
+th:nth-child(6){width:20%}
+th:nth-child(7){width:4%}
 
 td{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 td:nth-child(6){white-space:normal}
 
-/* カンバン */
-.kanban{display:none;grid-template-columns:repeat(4,1fr);gap:16px}
-.task{
-padding:8px;margin:6px;border-radius:8px;
-cursor:pointer;font-size:13px;transition:0.2s
-}
-.task:hover{transform:scale(1.02)}
-
 .badge{padding:2px 6px;border-radius:999px;font-size:12px}
-.高{background:#7f1d1d}
-.中{background:#78350f}
-.低{background:#14532d}
+.高{background:#7f1d1d}.中{background:#78350f}.低{background:#14532d}
 
-.small{font-size:11px;color:#9ca3af}
-
+.kanban{display:none;grid-template-columns:repeat(4,1fr);gap:10px}
+.task{padding:8px;margin:6px;border-radius:8px;background:#1f2937;cursor:pointer}
+.small{font-size:11px;color:#aaa}
 </style>
-</head>
 
+</head>
 <body>
 <div class="wrap">
 
-<h2>🤖 TaskFlow Ultimate</h2>
+<h2>TaskFlow</h2>
 
 <div class="card">
-<b>🕒 今日の流れ</b>
-<div id="todaySchedule"></div>
+<b>今日の流れ</b><div id="today"></div>
 </div>
 
 <div class="card">
-<input id="search" placeholder="🔍 検索" style="width:100%">
+<input id="search" placeholder="検索" style="width:100%">
 </div>
 
 <div class="card">
@@ -72,22 +59,20 @@ cursor:pointer;font-size:13px;transition:0.2s
 <select id="priority"><option>高</option><option>中</option><option>低</option></select>
 <input id="deadline" type="date">
 <input id="estimate" type="number">
-<input id="memo" placeholder="メモ">
-
+<input id="memo">
 <button id="addBtn">追加</button>
-<button onclick="copyWeeklyReport()">📋 週報</button>
-<button onclick="exportTasks()">💾 保存</button>
-<input type="file" id="importFile" style="display:none" onchange="importTasks(event)">
-<button onclick="importFile.click()">📂 復元</button>
+<button onclick="copy()">週報コピー</button>
+<button onclick="exportData()">保存</button>
+<input type="file" id="file" style="display:none" onchange="importData(event)">
+<button onclick="document.getElementById('file').click()">復元</button>
 </div>
 
 <div class="card">
-<button onclick="showTable()">📋 一覧</button>
-<button onclick="showKanban()">📊 カンバン</button>
+<button id="toList">一覧</button>
+<button id="toBoard">カンバン</button>
 </div>
 
-<!-- 一覧 -->
-<div class="card" id="tableView">
+<div class="card" id="list">
 <table>
 <thead>
 <tr>
@@ -98,36 +83,27 @@ cursor:pointer;font-size:13px;transition:0.2s
 <tbody id="tbody"></tbody>
 </table>
 
-<h3 onclick="toggleDone()">✅ 完了 (<span id="doneCount"></span>)</h3>
+<h3 onclick="toggleDone()">完了 (<span id="doneCount"></span>)</h3>
 <div id="doneWrap" style="display:none">
 <table><tbody id="done"></tbody></table>
 </div>
+
 </div>
 
-<!-- カンバン -->
-<div id="kanbanView" class="kanban">
+<div id="board" class="kanban">
+
 <div class="card" ondrop="drop(event,'未着手')" ondragover="allowDrop(event)">
-<h4>未着手</h4><div id="todo"></div></div>
-<div class="card" ondrop="drop(event,'進行中')" ondragover="allowDrop(event)">
-<h4>進行中</h4><div id="doing"></div></div>
-<div class="card" ondrop="drop(event,'待機')" ondragover="allowDrop(event)">
-<h4>待機</h4><div id="waiting"></div></div>
-<div class="card" ondrop="drop(event,'完了')" ondragover="allowDrop(event)">
-<h4>完了</h4><div id="doneK"></div></div>
-</div>
+未着手<div id="todo"></div></div>
 
-<!-- モーダル -->
-<div id="modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7)">
-<div style="background:#111827;padding:20px;margin:100px auto;width:320px">
-<input id="m_name"><br><br>
-<select id="m_priority"><option>高</option><option>中</option><option>低</option></select><br><br>
-<input id="m_deadline" type="date"><br><br>
-<input id="m_estimate"><br><br>
-<input id="m_progress"><br><br>
-<textarea id="m_memo"></textarea><br><br>
-<button onclick="saveModal()">保存</button>
-<button onclick="closeModal()">閉じる</button>
-</div>
+<div class="card" ondrop="drop(event,'進行中')" ondragover="allowDrop(event)">
+進行中<div id="doing"></div></div>
+
+<div class="card" ondrop="drop(event,'待機')" ondragover="allowDrop(event)">
+待機<div id="waiting"></div></div>
+
+<div class="card" ondrop="drop(event,'完了')" ondragover="allowDrop(event)">
+完了<div id="doneK"></div></div>
+
 </div>
 
 </div>
@@ -135,163 +111,190 @@ cursor:pointer;font-size:13px;transition:0.2s
 <script>
 
 const $=id=>document.getElementById(id);
-let tasks=JSON.parse(localStorage.getItem('tasks')||'[]');
-let keyword="",currentId=null,showDone=false;
+let tasks=JSON.parse(localStorage.getItem("tasks")||"[]");
+let keyword="";
+let showDone=false;
 
 /* 検索 */
-search.oninput=e=>{keyword=e.target.value.toLowerCase();render();};
-function match(t){
-return !keyword ||
-t.name.toLowerCase().includes(keyword) ||
-(t.memo||"").toLowerCase().includes(keyword);
-}
+$("search").oninput=e=>{
+keyword=e.target.value.toLowerCase();
+render();
+};
 
 /* 追加 */
-addBtn.onclick=()=>{
-if(!name.value.trim()) return;
+$("addBtn").onclick=()=>{
+if(!$("name").value.trim()) return;
+
 tasks.push({
 id:Date.now(),
-name:name.value,
-priority:priority.value,
-deadline:deadline.value,
-estimate:+estimate.value||1,
+name:$("name").value,
+priority:$("priority").value,
+deadline:$("deadline").value,
+estimate:+$("estimate").value||1,
 progress:0,
-memo:memo.value,
+memo:$("memo").value,
 status:"未着手"
 });
+
 ["name","deadline","estimate","memo"].forEach(i=>$(i).value="");
 save();
 };
 
 /* 状態 */
 function status(t){
-if(t.status==="待機") return "⏸待機";
-if(!t.deadline) return "📦バックログ";
+if(t.status==="待機")return"待機";
+if(!t.deadline)return"バックログ";
 let d=(new Date(t.deadline)-new Date())/86400000;
-if(d<0) return "🔴遅延";
-if(t.estimate>d) return "🟠危険";
-if(d<2) return "🟡注意";
-return "✅正常";
+if(d<0)return"遅延";
+if(t.estimate>d)return"危険";
+if(d<2)return"注意";
+return"正常";
 }
 
 /* 今日 */
-function renderToday(){
+function today(){
 let list=tasks.filter(t=>t.progress<100&&t.deadline);
 list.sort((a,b)=>new Date(a.deadline)-new Date(b.deadline));
+
 let h=6,res=[];
-for(let t of list){
-if(h<=0) break;
-let use=Math.min(h,(t.estimate*6)*(1-t.progress/100));
-res.push(`・${t.name}（${Math.round(use)}h）`);
-h-=use;
-}
-todaySchedule.innerHTML=res.join("<br>")||"なし";
+list.forEach(t=>{
+let need=(t.estimate*6)*(1-t.progress/100);
+let use=Math.min(h,need);
+if(h>0){res.push(`${t.name}(${Math.round(use)}h)`);h-=use;}
+});
+$("today").innerHTML=res.join("<br>");
 }
 
-/* 描画 */
+/* render */
 function render(){
-tbody.innerHTML="";done.innerHTML="";
-["todo","doing","waiting","doneK"].forEach(i=>$(i).innerHTML="");
 
-let doneCountNum=0;
+$("tbody").innerHTML="";
+$("done").innerHTML="";
+["todo","doing","waiting","doneK"].forEach(id=>$(id).innerHTML="");
+
+let doneCount=0;
 
 tasks.forEach(t=>{
-if(!match(t)) return;
 
+if(keyword && !t.name.toLowerCase().includes(keyword)
+&& !(t.memo||"").toLowerCase().includes(keyword)) return;
+
+/* 一覧 */
 let row=`
 <tr>
-<td onclick="edit(${t.id})">${t.name}</td>
+<td>${t.name}</td>
 <td class="badge ${t.priority}">${t.priority}</td>
 <td>${status(t)}</td>
 <td>${t.deadline||""}</td>
 <td>${t.progress}%</td>
 <td>${t.memo||""}</td>
 <td>
-<button onclick="toggleWaiting(${t.id});event.stopPropagation()">${t.status==="待機"?"▶":"⏸"}</button>
-<button onclick="del(${t.id});event.stopPropagation()">×</button>
+<button onclick="toggleWait(${t.id})">⏸</button>
+<button onclick="del(${t.id})">×</button>
 </td>
 </tr>
 `;
 
-if(t.progress==100){done.innerHTML+=row;doneCountNum++;}
-else{tbody.innerHTML+=row;}
+if(t.progress==100){
+$("done").innerHTML+=row;
+doneCount++;
+}else{
+$("tbody").innerHTML+=row;
+}
+
+/* カンバン */
+let card=document.createElement("div");
+card.className="task";
+
+card.innerHTML=`
+<div class="small">${t.deadline||""}</div>
+<b>${t.name}</b>
+`;
+
+card.draggable=true;
+card.ondragstart=e=>e.dataTransfer.setData("id",t.id);
+
+let col=
+t.status==="待機"?"waiting":
+t.progress==100?"doneK":
+t.progress>0?"doing":"todo";
+
+$(col).appendChild(card);
 
 });
 
-doneCount.innerText=doneCountNum;
-doneWrap.style.display=showDone?"block":"none";
+$("doneCount").innerText=doneCount;
+$("doneWrap").style.display=showDone?"block":"none";
 
-renderToday();
+today();
 }
 
 /* 操作 */
-function toggleWaiting(id){
+function toggleWait(id){
 let t=tasks.find(x=>x.id==id);
 t.status=t.status==="待機"?"進行中":"待機";
 save();
 }
 
-function edit(id){
-currentId=id;
-let t=tasks.find(x=>x.id==id);
-m_name.value=t.name;
-m_priority.value=t.priority;
-m_deadline.value=t.deadline||"";
-m_estimate.value=t.estimate;
-m_progress.value=t.progress;
-m_memo.value=t.memo||"";
-modal.style.display="block";
-}
-
-function saveModal(){
-Object.assign(tasks.find(x=>x.id==currentId),{
-name:m_name.value,
-priority:m_priority.value,
-deadline:m_deadline.value,
-estimate:+m_estimate.value,
-progress:+m_progress.value,
-memo:m_memo.value
-});
-modal.style.display="none";
+function del(id){
+tasks=tasks.filter(t=>t.id!=id);
 save();
 }
 
-function del(id){tasks=tasks.filter(t=>t.id!=id);save();}
-function save(){localStorage.setItem('tasks',JSON.stringify(tasks));render();}
-function toggleDone(){showDone=!showDone;render();}
-
-/* バックアップ */
-function exportTasks(){
-let blob=new Blob([JSON.stringify(tasks,null,2)],{type:"application/json"});
-let url=URL.createObjectURL(blob);
-let a=document.createElement("a");
-a.href=url;a.download="tasks_backup.json";a.click();
-URL.revokeObjectURL(url);
+function save(){
+localStorage.setItem("tasks",JSON.stringify(tasks));
+render();
 }
 
-function importTasks(e){
-if(!confirm("上書きします")) return;
-let r=new FileReader();
-r.onload=x=>{tasks=JSON.parse(x.target.result);save();};
-r.readAsText(e.target.files[0]);
+function toggleDone(){
+showDone=!showDone;
+render();
+}
+
+/* DnD */
+function allowDrop(e){e.preventDefault();}
+function drop(e,status){
+let id=+e.dataTransfer.getData("id");
+let t=tasks.find(x=>x.id==id);
+
+t.status=status;
+if(status==="完了")t.progress=100;
+save();
 }
 
 /* 週報 */
-function copyWeeklyReport(){
-let rows=[["タスク","優先","状態","期限","進捗","メモ"]];
-tasks.forEach(t=>rows.push([t.name,t.priority,status(t),t.deadline||"",t.progress+"%",t.memo||""]));
+function copy(){
+let rows=[["タスク","優先","状態","期限","進捗"]];
+tasks.forEach(t=>rows.push([t.name,t.priority,status(t),t.deadline||"",t.progress+"%"]));
 navigator.clipboard.writeText(rows.map(r=>r.join("\t")).join("\n"));
-alert("コピー完了");
+alert("コピーOK");
 }
 
-/* UI */
-function showTable(){tableView.style.display="block";kanbanView.style.display="none";}
-function showKanban(){tableView.style.display="none";kanbanView.style.display="grid";}
+/* バックアップ */
+function exportData(){
+let blob=new Blob([JSON.stringify(tasks)],{type:"app/json"});
+let a=document.createElement("a");
+a.href=URL.createObjectURL(blob);
+a.download="backup.json";
+a.click();
+}
 
-showTable();
+function importData(e){
+let r=new FileReader();
+r.onload=x=>{
+tasks=JSON.parse(x.target.result);
+save();
+};
+r.readAsText(e.target.files[0]);
+}
+
+/* 切替 */
+$("toList").onclick=()=>{$("list").style.display="block";$("board").style.display="none";}
+$("toBoard").onclick=()=>{$("list").style.display="none";$("board").style.display="grid";}
+
+$("toList").click();
 render();
 
 </script>
 </body>
 </html>
-``
