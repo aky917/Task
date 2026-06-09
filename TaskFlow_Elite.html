@@ -14,36 +14,44 @@
 }
 
 body{
-  margin:0;background:var(--bg);color:var(--text);
-  font-family:Segoe UI;
+margin:0;
+background:var(--bg);
+color:var(--text);
+font-family:Segoe UI;
 }
 
 .wrap{max-width:1200px;margin:auto;padding:20px;}
 
 .card{
-  background:var(--panel);
-  border:1px solid var(--border);
-  border-radius:10px;
-  padding:12px;
-  margin-bottom:10px;
+background:var(--panel);
+border:1px solid var(--border);
+border-radius:10px;
+padding:12px;
+margin-bottom:10px;
 }
 
 .form{
-  display:grid;
-  grid-template-columns:2fr 1fr 1fr 1fr 1fr 2fr auto;
-  gap:6px;
+display:grid;
+grid-template-columns:2fr 1fr 1fr 1fr 1fr 2fr auto;
+gap:6px;
 }
 
 input,select{
-  background:#0b1220;border:1px solid var(--border);
-  color:white;padding:6px;border-radius:6px;
+background:#0b1220;
+border:1px solid var(--border);
+color:white;
+padding:6px;
+border-radius:6px;
 }
 
 button{
-  background:#1f2937;color:white;border:none;
-  padding:6px;border-radius:6px;cursor:pointer;
+background:#1f2937;
+color:white;
+border:none;
+padding:6px;
+border-radius:6px;
+cursor:pointer;
 }
-
 button:hover{background:#374151;}
 .primary{background:var(--accent);}
 
@@ -51,7 +59,15 @@ table{width:100%;border-collapse:collapse;}
 th,td{text-align:left;padding:8px;border-bottom:1px solid var(--border);}
 tr:hover{background:#1f2937;}
 
-.badge{padding:2px 6px;border-radius:10px;font-size:12px;}
+.badge{
+padding:2px 6px;
+border-radius:10px;
+font-size:12px;
+}
+
+.高{background:#7f1d1d;}
+.中{background:#78350f;}
+.低{background:#14532d;}
 
 .kanban{display:none;grid-template-columns:repeat(4,1fr);gap:8px;}
 .task{margin:4px;padding:6px;border-radius:6px;color:white;}
@@ -72,31 +88,47 @@ input[type="range"]{width:90px;}
 <div id="recommend"></div>
 </div>
 
+<!-- 今週 -->
+<div class="card">
+<b>📆 今週のタスク</b>
+<div id="weekTasks"></div>
+</div>
+
 <!-- 入力 -->
 <div class="card form">
-<input id="name">
-<select id="priority"><option>高</option><option>中</option><option>低</option></select>
+<input id="name" placeholder="タスク">
+<select id="priority">
+<option>高</option><option>中</option><option>低</option>
+</select>
 <input id="deadline" type="date">
-<input id="estimate" type="number" placeholder="日数">
+<input id="estimate" type="number" placeholder="必要日数">
 <input id="progressNum" value="0">
-<input id="memo">
+<input id="memo" placeholder="メモ">
 <button id="addBtn" class="primary">＋</button>
 </div>
 
 <!-- 操作 -->
 <div class="card">
-<input id="search">
+<input id="search" placeholder="検索">
 <button id="aiBtn">AI整理</button>
 <button id="tableBtn">一覧</button>
 <button id="kanbanBtn">カンバン</button>
 </div>
 
-<!-- テーブル -->
+<!-- 一覧 -->
 <div id="tableView" class="card">
 <table>
 <thead>
 <tr>
-<th>タスク</th><th>状態</th><th>期限</th><th>進捗</th><th>メモ</th><th></th>
+<th>タスク</th>
+<th>優先</th>
+<th>状態</th>
+<th>日数</th>
+<th>期限</th>
+<th>残日数</th>
+<th>進捗</th>
+<th>メモ</th>
+<th></th>
 </tr>
 </thead>
 <tbody id="tbody"></tbody>
@@ -128,17 +160,15 @@ input[type="range"]{width:90px;}
 
 <!-- モーダル -->
 <div id="editModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);justify-content:center;align-items:center;">
-<div style="background:#111827;padding:20px;border-radius:10px;width:300px;">
-
+<div style="background:#111827;padding:20px;border-radius:10px;width:320px;">
+<h3>編集</h3>
 <input id="editName"><br><br>
 <input id="editDeadline" type="date"><br><br>
 <input id="editEstimate" type="number"><br><br>
 <input id="editProgress" type="range" min="0" max="100"><br><br>
 <textarea id="editMemo"></textarea><br><br>
-
 <button onclick="saveEdit()">保存</button>
 <button onclick="closeModal()">閉じる</button>
-
 </div>
 </div>
 
@@ -151,184 +181,209 @@ let tasks=JSON.parse(localStorage.getItem('tasks')||'[]');
 let editingId=null;
 
 function save(){
-  localStorage.setItem('tasks',JSON.stringify(tasks));
-  render();recommend();
+localStorage.setItem('tasks',JSON.stringify(tasks));
+render();recommend();renderWeek();
 }
 
 function toast(msg){
-  let t=document.createElement("div");
-  t.textContent=msg;
-  t.style.cssText="position:fixed;bottom:20px;right:20px;background:#2563eb;padding:10px;border-radius:8px;color:white;";
-  document.body.appendChild(t);
-  setTimeout(()=>t.remove(),1500);
+let t=document.createElement("div");
+t.textContent=msg;
+t.style.cssText="position:fixed;bottom:20px;right:20px;background:#2563eb;padding:10px;border-radius:8px;color:white;";
+document.body.appendChild(t);
+setTimeout(()=>t.remove(),1500);
 }
 
 /* 追加 */
 $("addBtn").onclick=()=>{
-  if(!$("name").value.trim())return;
+if(!$("name").value.trim())return;
 
-  let p=+$("progressNum").value||0;
+let p=+$("progressNum").value||0;
 
-  tasks.push({
-    id:Date.now(),
-    name:$("name").value,
-    priority:$("priority").value,
-    deadline:$("deadline").value,
-    estimate:+$("estimate").value||1,
-    progress:p,
-    memo:$("memo").value,
-    status:p==0?'未着手':p==100?'完了':'進行中'
-  });
+tasks.push({
+id:Date.now(),
+name:$("name").value,
+priority:$("priority").value,
+deadline:$("deadline").value,
+estimate:+$("estimate").value||1,
+progress:p,
+memo:$("memo").value,
+status:p==0?'未着手':p==100?'完了':'進行中'
+});
 
-  $("name").value='';
-  save();
-  toast("追加");
+$("name").value='';
+save();toast("追加");
 };
 
 /* AI */
 function calcScore(t){
-  let s=0,now=new Date();
-  if(t.progress<100)s+=100;
-  if(t.deadline){
-    let d=(new Date(t.deadline)-now)/(1000*60*60*24);
-    s+=(30-d);
-    if(t.estimate && t.estimate>d)s+=(t.estimate-d)*20;
-  }
-  s+=(100-t.progress)*0.5;
-  if(t.priority=='高')s+=30;
-  return s;
+let s=0,now=new Date();
+if(t.progress<100)s+=100;
+if(t.deadline){
+let d=(new Date(t.deadline)-now)/(1000*60*60*24);
+s+=(30-d);
+if(t.estimate>d)s+=(t.estimate-d)*20;
+}
+s+=(100-t.progress)*0.5;
+if(t.priority=='高')s+=30;
+return s;
 }
 
 $("aiBtn").onclick=()=>{
-  tasks.sort((a,b)=>calcScore(b)-calcScore(a));
-  save();toast("AI整理");
+tasks.sort((a,b)=>calcScore(b)-calcScore(a));
+save();toast("AI整理");
 };
 
 /* 状態 */
 function statusLabel(t){
-  if(t.status=='待機') return '待機';
-  if(t.progress==100) return '完了';
+if(t.status==='待機') return '<span style="color:#60a5fa">待機中</span>';
+if(t.progress===100) return '<span style="color:#9ca3af">完了</span>';
 
-  let now=new Date();
-  if(t.deadline){
-    let d=(new Date(t.deadline)-now)/(1000*60*60*24);
-    if(d<0)return '遅延';
-    if(t.estimate>d)return '危険';
-    if(d<2)return '注意';
-  }
-  return '正常';
+let now=new Date();
+if(t.deadline){
+let d=(new Date(t.deadline)-now)/(1000*60*60*24);
+
+if(d<0) return '<span style="color:#ef4444;font-weight:bold">遅延</span>';
+if(t.estimate>d) return '<span style="color:#f97316;font-weight:bold">危険</span>';
+if(d<2) return '<span style="color:#facc15">注意</span>';
+}
+return '<span style="color:#22c55e">正常</span>';
+}
+
+function remainingDays(t){
+if(!t.estimate) return '';
+return Math.max(0,Math.round(t.estimate*(1-t.progress/100)));
 }
 
 /* 推薦 */
 function recommend(){
-  let active=tasks.filter(t=>t.progress<100);
-  if(!active.length){$("recommend").innerText="🎉OK";return;}
-  let best=active.sort((a,b)=>calcScore(b)-calcScore(a))[0];
-  $("recommend").innerText=best.name;
+let a=tasks.filter(t=>t.progress<100);
+if(!a.length){$("recommend").innerText="🎉OK";return;}
+let best=a.sort((a,b)=>calcScore(b)-calcScore(a))[0];
+$("recommend").innerText=best.name;
+}
+
+/* 今週 */
+function renderWeek(){
+let now=new Date();
+let list=tasks.filter(t=>{
+if(!t.deadline||t.progress===100)return false;
+let d=new Date(t.deadline);
+let diff=(d-now)/(1000*60*60*24);
+return diff>=0&&diff<=7;
+});
+
+list.sort((a,b)=>calcScore(b)-calcScore(a));
+
+$("weekTasks").innerHTML=list.length?
+list.map(t=>`${t.deadline} ${t.name}`).join("<br>"):"なし";
 }
 
 /* render */
 function render(){
-  $("tbody").innerHTML='';
-  $("doneList").innerHTML='';
-  ["todo","doing","waiting","done"].forEach(id=>$(id).innerHTML="");
+$("tbody").innerHTML='';
+$("doneList").innerHTML='';
+["todo","doing","waiting","done"].forEach(id=>$(id).innerHTML="");
 
-  tasks.forEach(t=>{
-    let row=`
+tasks.forEach(t=>{
+
+let row=`
 <tr>
 <td onclick='openModal(${JSON.stringify(t)})'>${t.name}</td>
+<td><span class="badge ${t.priority}">${t.priority}</span></td>
 <td>${statusLabel(t)}</td>
+<td>${t.estimate||''}</td>
 <td>${t.deadline||''}</td>
+<td>${remainingDays(t)}</td>
 <td>
 <input type="range" value="${t.progress}" oninput="updateProgress(${t.id},this.value)">
 ${t.progress}%
 </td>
-<td>${t.memo||''}</td>
+<td style="color:#9ca3af;font-size:12px;">${t.memo||''}</td>
 <td><button onclick="del(${t.id})">🗑</button></td>
 </tr>`;
 
-    if(t.progress==100) $("doneList").innerHTML+=row;
-    else $("tbody").innerHTML+=row;
+if(t.progress==100) $("doneList").innerHTML+=row;
+else $("tbody").innerHTML+=row;
 
-    // カンバン
-    let c=document.createElement('div');
-    c.className='task';
+/* カンバン */
+let c=document.createElement('div');
+c.className='task';
 
-    let color={
-      高:'#7f1d1d',
-      中:'#78350f',
-      低:'#14532d'
-    }[t.priority]||'#1f2937';
+let color={高:'#7f1d1d',中:'#78350f',低:'#14532d'}[t.priority];
+c.style.background=color;
+c.textContent=`${t.name} (${t.progress}%)`;
 
-    c.style.background=color;
-    c.textContent=`${t.name} (${t.progress}%)`;
+c.draggable=true;
+c.ondragstart=e=>e.dataTransfer.setData("id",t.id);
 
-    c.draggable=true;
-    c.ondragstart=e=>e.dataTransfer.setData("id",t.id);
+let col={未着手:'todo',進行中:'doing',待機:'waiting',完了:'done'}[t.status];
+$(col).appendChild(c);
 
-    let col={
-      未着手:'todo',
-      進行中:'doing',
-      待機:'waiting',
-      完了:'done'
-    }[t.status];
-
-    $(col).appendChild(c);
-  });
+});
 }
 
+/* 操作 */
 function updateProgress(id,v){
-  let t=tasks.find(x=>x.id==id);
-  t.progress=+v;
-  if(v==0)t.status='未着手';
-  else if(v==100)t.status='完了';
-  else t.status='進行中';
-  save();
+let t=tasks.find(x=>x.id==id);
+t.progress=+v;
+t.status=v==0?'未着手':v==100?'完了':'進行中';
+save();
 }
 
 function del(id){
-  tasks=tasks.filter(t=>t.id!=id);
-  save();toast("削除");
+tasks=tasks.filter(t=>t.id!=id);
+save();toast("削除");
 }
 
 /* モーダル */
 function openModal(t){
-  editingId=t.id;
-  $("editName").value=t.name;
-  $("editDeadline").value=t.deadline;
-  $("editEstimate").value=t.estimate;
-  $("editProgress").value=t.progress;
-  $("editMemo").value=t.memo;
-  $("editModal").style.display='flex';
+editingId=t.id;
+$("editName").value=t.name;
+$("editDeadline").value=t.deadline;
+$("editEstimate").value=t.estimate;
+$("editProgress").value=t.progress;
+$("editMemo").value=t.memo;
+$("editModal").style.display='flex';
 }
 
 function closeModal(){
-  $("editModal").style.display='none';
+$("editModal").style.display='none';
 }
 
 function saveEdit(){
-  let t=tasks.find(x=>x.id==editingId);
-  t.name=$("editName").value;
-  t.deadline=$("editDeadline").value;
-  t.estimate=+$("editEstimate").value;
-  t.progress=+$("editProgress").value;
-  t.memo=$("editMemo").value;
-  save();closeModal();
+let t=tasks.find(x=>x.id==editingId);
+t.name=$("editName").value;
+t.deadline=$("editDeadline").value;
+t.estimate=+$("editEstimate").value;
+t.progress=+$("editProgress").value;
+t.memo=$("editMemo").value;
+t.status=t.progress==0?'未着手':t.progress==100?'完了':'進行中';
+save();closeModal();
 }
 
+/* DnD */
 function allowDrop(e){e.preventDefault();}
 function drop(e,status){
-  let id=+e.dataTransfer.getData("id");
-  let t=tasks.find(x=>x.id==id);
-  t.status=status;
-  if(status=='完了')t.progress=100;
-  save();
+let id=+e.dataTransfer.getData("id");
+let t=tasks.find(x=>x.id==id);
+t.status=status;
+if(status==='完了')t.progress=100;
+save();
 }
 
-$("tableBtn").onclick=()=>{$("tableView").style.display='block';$("kanbanView").style.display='none';}
-$("kanbanBtn").onclick=()=>{$("kanbanView").style.display='grid';$("tableView").style.display='none';}
+$("tableBtn").onclick=()=>{
+$("tableView").style.display='block';
+$("kanbanView").style.display='none';
+};
 
-render();recommend();
+$("kanbanBtn").onclick=()=>{
+$("kanbanView").style.display='grid';
+$("tableView").style.display='none';
+};
+
+render();
+recommend();
+renderWeek();
 </script>
 
 </body>
