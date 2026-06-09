@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>TaskFlow Final Complete</title>
+<title>TaskFlow Ultimate Pro</title>
 
 <style>
 body{background:#0b1020;color:#e5e7eb;font-family:Segoe UI;margin:0}
@@ -35,20 +35,28 @@ th:nth-child(7),td:nth-child(7){width:4%}
 td{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 td:nth-child(6){white-space:normal}
 
+/* カンバン */
 .kanban{display:none;grid-template-columns:repeat(4,1fr);gap:16px}
-.task{padding:8px;margin:6px;border-radius:8px;cursor:pointer;font-size:13px}
+.task{
+padding:8px;margin:6px;border-radius:8px;
+cursor:pointer;font-size:13px;transition:0.2s
+}
+.task:hover{transform:scale(1.02)}
 
 .badge{padding:2px 6px;border-radius:999px;font-size:12px}
-.高{background:#7f1d1d}.中{background:#78350f}.低{background:#14532d}
+.高{background:#7f1d1d}
+.中{background:#78350f}
+.低{background:#14532d}
 
 .small{font-size:11px;color:#9ca3af}
+
 </style>
 </head>
 
 <body>
 <div class="wrap">
 
-<h2>🤖 TaskFlow</h2>
+<h2>🤖 TaskFlow Ultimate</h2>
 
 <div class="card">
 <b>🕒 今日の流れ</b>
@@ -61,19 +69,21 @@ td:nth-child(6){white-space:normal}
 
 <div class="card">
 <input id="name" placeholder="タスク">
-<select id="priority">
-<option>高</option><option>中</option><option>低</option>
-</select>
+<select id="priority"><option>高</option><option>中</option><option>低</option></select>
 <input id="deadline" type="date">
 <input id="estimate" type="number">
 <input id="memo" placeholder="メモ">
+
 <button id="addBtn">追加</button>
-<button onclick="copyWeeklyReport()">📋 週報コピー</button>
+<button onclick="copyWeeklyReport()">📋 週報</button>
+<button onclick="exportTasks()">💾 保存</button>
+<input type="file" id="importFile" style="display:none" onchange="importTasks(event)">
+<button onclick="importFile.click()">📂 復元</button>
 </div>
 
 <div class="card">
-<button id="btnTable">📋 一覧</button>
-<button id="btnKanban">📊 カンバン</button>
+<button onclick="showTable()">📋 一覧</button>
+<button onclick="showKanban()">📊 カンバン</button>
 </div>
 
 <!-- 一覧 -->
@@ -96,39 +106,27 @@ td:nth-child(6){white-space:normal}
 
 <!-- カンバン -->
 <div id="kanbanView" class="kanban">
-
 <div class="card" ondrop="drop(event,'未着手')" ondragover="allowDrop(event)">
-<h4>未着手</h4><div id="todo"></div>
-</div>
-
+<h4>未着手</h4><div id="todo"></div></div>
 <div class="card" ondrop="drop(event,'進行中')" ondragover="allowDrop(event)">
-<h4>進行中</h4><div id="doing"></div>
-</div>
-
+<h4>進行中</h4><div id="doing"></div></div>
 <div class="card" ondrop="drop(event,'待機')" ondragover="allowDrop(event)">
-<h4>待機</h4><div id="waiting"></div>
-</div>
-
+<h4>待機</h4><div id="waiting"></div></div>
 <div class="card" ondrop="drop(event,'完了')" ondragover="allowDrop(event)">
-<h4>完了</h4><div id="doneK"></div>
-</div>
-
+<h4>完了</h4><div id="doneK"></div></div>
 </div>
 
 <!-- モーダル -->
 <div id="modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7)">
 <div style="background:#111827;padding:20px;margin:100px auto;width:320px">
-
 <input id="m_name"><br><br>
 <select id="m_priority"><option>高</option><option>中</option><option>低</option></select><br><br>
 <input id="m_deadline" type="date"><br><br>
 <input id="m_estimate"><br><br>
 <input id="m_progress"><br><br>
 <textarea id="m_memo"></textarea><br><br>
-
 <button onclick="saveModal()">保存</button>
 <button onclick="closeModal()">閉じる</button>
-
 </div>
 </div>
 
@@ -138,102 +136,62 @@ td:nth-child(6){white-space:normal}
 
 const $=id=>document.getElementById(id);
 let tasks=JSON.parse(localStorage.getItem('tasks')||'[]');
-let keyword="";
-let currentId=null;
-let showDone=false;
+let keyword="",currentId=null,showDone=false;
 
 /* 検索 */
-$("search").oninput=e=>{
-keyword=e.target.value.toLowerCase();
-render();
-};
-
+search.oninput=e=>{keyword=e.target.value.toLowerCase();render();};
 function match(t){
-if(!keyword) return true;
-return (
-(t.name && t.name.toLowerCase().includes(keyword)) ||
-(t.memo && t.memo.toLowerCase().includes(keyword))
-);
+return !keyword ||
+t.name.toLowerCase().includes(keyword) ||
+(t.memo||"").toLowerCase().includes(keyword);
 }
 
 /* 追加 */
-$("addBtn").onclick=()=>{
-if(!$("name").value.trim()) return;
-
+addBtn.onclick=()=>{
+if(!name.value.trim()) return;
 tasks.push({
 id:Date.now(),
-name:$("name").value,
-priority:$("priority").value,
-deadline:$("deadline").value,
-estimate:+$("estimate").value||1,
+name:name.value,
+priority:priority.value,
+deadline:deadline.value,
+estimate:+estimate.value||1,
 progress:0,
-memo:$("memo").value,
+memo:memo.value,
 status:"未着手"
 });
-
-["name","deadline","estimate","memo"].forEach(id=>$(id).value="");
+["name","deadline","estimate","memo"].forEach(i=>$(i).value="");
 save();
 };
 
 /* 状態 */
 function status(t){
-if(t.status==="待機") return "🔵待機";
-if(!t.deadline) return "バックログ";
+if(t.status==="待機") return "⏸待機";
+if(!t.deadline) return "📦バックログ";
 let d=(new Date(t.deadline)-new Date())/86400000;
-if(d<0) return "遅延";
-if(t.estimate>d) return "危険";
-if(d<2) return "注意";
-return "正常";
-}
-
-function remain(t){
-let r=Math.round(t.estimate*(1-t.progress/100));
-return r<0?`<span style="color:#ef4444">${r}</span>`:r;
-}
-
-function remainLabel(t){
-let r=Math.round(t.estimate*(1-t.progress/100));
-return r<0?`<span style="color:#ef4444">残${r}日</span>`:`残${r}日`;
-}
-
-function statusIcon(t){
-if(t.status==="待機") return "⏸";
-let d=(new Date(t.deadline)-new Date())/86400000;
-if(d<0) return "🔴";
-if(t.estimate>d) return "🟠";
-if(d<2) return "🟡";
-return "";
+if(d<0) return "🔴遅延";
+if(t.estimate>d) return "🟠危険";
+if(d<2) return "🟡注意";
+return "✅正常";
 }
 
 /* 今日 */
 function renderToday(){
-let list=tasks.filter(t=>t.progress<100 && t.deadline);
+let list=tasks.filter(t=>t.progress<100&&t.deadline);
 list.sort((a,b)=>new Date(a.deadline)-new Date(b.deadline));
-
 let h=6,res=[];
 for(let t of list){
-if(h<=0)break;
-let need=(t.estimate*6)*(1-t.progress/100);
-let use=Math.min(h,need);
+if(h<=0) break;
+let use=Math.min(h,(t.estimate*6)*(1-t.progress/100));
 res.push(`・${t.name}（${Math.round(use)}h）`);
 h-=use;
 }
 todaySchedule.innerHTML=res.join("<br>")||"なし";
 }
 
-/* 7日 */
-function isActive(t){
-if(t.progress<100) return true;
-if(!t.doneAt) return true;
-return (Date.now()-t.doneAt)/86400000<7;
-}
-
 /* 描画 */
 function render(){
-
-tbody.innerHTML="";
-done.innerHTML="";
-["todo","doing","waiting","doneK"].forEach(id=>$(id).innerHTML="");
+tbody.innerHTML="";done.innerHTML="";
+["todo","doing","waiting","doneK"].forEach(i=>$(i).innerHTML="");
 
 let doneCountNum=0;
 
@@ -246,93 +204,31 @@ let row=`
 <td class="badge ${t.priority}">${t.priority}</td>
 <td>${status(t)}</td>
 <td>${t.deadline||""}</td>
-<td>${t.progress}%（残 ${remain(t)}日）</td>
-<td onclick="toggleMemo(this)">
-${short(t.memo)}
-<div class="full" style="display:none">${t.memo||""}</div>
-</td>
+<td>${t.progress}%</td>
+<td>${t.memo||""}</td>
 <td>
-<button onclick="toggleWaiting(${t.id});event.stopPropagation()">
-${t.status==="待機"?"▶":"⏸"}
-</button>
+<button onclick="toggleWaiting(${t.id});event.stopPropagation()">${t.status==="待機"?"▶":"⏸"}</button>
 <button onclick="del(${t.id});event.stopPropagation()">×</button>
 </td>
 </tr>
 `;
 
-if(t.progress==100){
-done.innerHTML+=row;
-doneCountNum++;
-}else{
-tbody.innerHTML+=row;
-}
-
-if(!isActive(t)) return;
-
-let c=document.createElement("div");
-c.className="task";
-c.style.background=color(t);
-
-c.onclick=()=>edit(t.id);
-
-c.innerHTML=`
-<div class="small">
-<span class="badge ${t.priority}">${t.priority}</span>
-${t.deadline||""} ・ ${remainLabel(t)}
-</div>
-<b>${statusIcon(t)} ${t.name}</b>
-<div style="height:4px;background:#000;margin-top:5px">
-<div style="width:${t.progress}%;height:100%;background:#3b82f6"></div>
-</div>
-`;
-
-c.draggable=true;
-c.ondragstart=e=>e.dataTransfer.setData("id",t.id);
-
-let col=
-t.status==="待機"?"waiting":
-t.progress==100?"doneK":
-t.progress>0?"doing":"todo";
-
-$(col).appendChild(c);
+if(t.progress==100){done.innerHTML+=row;doneCountNum++;}
+else{tbody.innerHTML+=row;}
 
 });
 
-doneWrap.style.display=showDone?"block":"none";
 doneCount.innerText=doneCountNum;
+doneWrap.style.display=showDone?"block":"none";
 
 renderToday();
 }
 
-/* コピー */
-function copyWeeklyReport(){
-let rows=[["タスク","優先","状態","期限","進捗","残日数","メモ"]];
-
-tasks.forEach(t=>{
-let r=Math.round(t.estimate*(1-t.progress/100));
-rows.push([t.name,t.priority,status(t),t.deadline||"",t.progress+"%",r,t.memo||""]);
-});
-
-let text=rows.map(r=>r.join("\t")).join("\n");
-navigator.clipboard.writeText(text);
-alert("コピー完了");
-}
-
-/* その他 */
+/* 操作 */
 function toggleWaiting(id){
 let t=tasks.find(x=>x.id==id);
 t.status=t.status==="待機"?"進行中":"待機";
-if(t.progress===0 && t.status==="進行中")t.progress=10;
 save();
-}
-
-function toggleMemo(td){
-let f=td.querySelector(".full");
-f.style.display=f.style.display==="none"?"block":"none";
-}
-
-function short(m){
-return !m?"":m.length>20?m.slice(0,20)+"...":m;
 }
 
 function edit(id){
@@ -347,70 +243,55 @@ m_memo.value=t.memo||"";
 modal.style.display="block";
 }
 
-function closeModal(){modal.style.display="none";}
-
 function saveModal(){
-let t=tasks.find(x=>x.id==currentId);
-t.name=m_name.value;
-t.priority=m_priority.value;
-t.deadline=m_deadline.value;
-t.estimate=+m_estimate.value;
-t.progress=+m_progress.value;
-t.memo=m_memo.value;
-if(t.progress==100&&!t.doneAt)t.doneAt=Date.now();
-closeModal();
+Object.assign(tasks.find(x=>x.id==currentId),{
+name:m_name.value,
+priority:m_priority.value,
+deadline:m_deadline.value,
+estimate:+m_estimate.value,
+progress:+m_progress.value,
+memo:m_memo.value
+});
+modal.style.display="none";
 save();
 }
 
-function del(id){
-tasks=tasks.filter(t=>t.id!=id);
-save();
+function del(id){tasks=tasks.filter(t=>t.id!=id);save();}
+function save(){localStorage.setItem('tasks',JSON.stringify(tasks));render();}
+function toggleDone(){showDone=!showDone;render();}
+
+/* バックアップ */
+function exportTasks(){
+let blob=new Blob([JSON.stringify(tasks,null,2)],{type:"application/json"});
+let url=URL.createObjectURL(blob);
+let a=document.createElement("a");
+a.href=url;a.download="tasks_backup.json";a.click();
+URL.revokeObjectURL(url);
 }
 
-function save(){
-localStorage.setItem('tasks',JSON.stringify(tasks));
-render();
+function importTasks(e){
+if(!confirm("上書きします")) return;
+let r=new FileReader();
+r.onload=x=>{tasks=JSON.parse(x.target.result);save();};
+r.readAsText(e.target.files[0]);
 }
 
-function toggleDone(){
-showDone=!showDone;
-render();
-}
-
-function allowDrop(e){e.preventDefault();}
-
-function drop(e,s){
-let id=+e.dataTransfer.getData("id");
-let t=tasks.find(x=>x.id==id);
-
-t.status=s;
-if(s==="完了"){t.progress=100;t.doneAt=Date.now();}
-if(s==="未着手")t.progress=0;
-save();
-}
-
-function color(t){
-if(t.status==="待機")return "#1e3a8a";
-if(!t.deadline)return "#374151";
-let d=(new Date(t.deadline)-new Date())/86400000;
-if(d<0)return "#7f1d1d";
-if(t.estimate>d)return "#78350f";
-if(d<2)return "#92400e";
-return "#1f2937";
+/* 週報 */
+function copyWeeklyReport(){
+let rows=[["タスク","優先","状態","期限","進捗","メモ"]];
+tasks.forEach(t=>rows.push([t.name,t.priority,status(t),t.deadline||"",t.progress+"%",t.memo||""]));
+navigator.clipboard.writeText(rows.map(r=>r.join("\t")).join("\n"));
+alert("コピー完了");
 }
 
 /* UI */
-btnTable.onclick=()=>{tableView.style.display="block";kanbanView.style.display="none";}
-btnKanban.onclick=()=>{tableView.style.display="none";kanbanView.style.display="grid";}
+function showTable(){tableView.style.display="block";kanbanView.style.display="none";}
+function showKanban(){tableView.style.display="none";kanbanView.style.display="grid";}
 
-document.addEventListener("keydown",e=>{
-if(e.key==="Escape") closeModal();
-});
-
-btnTable.click();
+showTable();
 render();
 
 </script>
-
 </body>
 </html>
+``
