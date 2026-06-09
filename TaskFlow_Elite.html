@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>TaskFlow Ultimate Balanced</title>
+<title>TaskFlow Ultimate Final</title>
 
 <style>
 body{background:#0b1020;color:#e5e7eb;font-family:Segoe UI;margin:0}
@@ -45,10 +45,12 @@ td{padding:8px;border-top:1px solid #1f2937}
 
 <div class="card">
 <input id="name" placeholder="タスク">
-<select id="priority"><option>高</option><option>中</option><option>低</option></select>
+<select id="priority">
+<option>高</option><option>中</option><option>低</option>
+</select>
 <input id="deadline" type="date">
 <input id="estimate" type="number">
-<input id="memo">
+<input id="memo" placeholder="メモ">
 <button id="addBtn">追加</button>
 </div>
 
@@ -63,7 +65,7 @@ td{padding:8px;border-top:1px solid #1f2937}
 <thead>
 <tr>
 <th>タスク</th><th>優先</th><th>状態</th>
-<th>期限</th><th>進捗</th><th>メモ</th>
+<th>期限</th><th>進捗</th><th>メモ</th><th></th>
 </tr>
 </thead>
 <tbody id="tbody"></tbody>
@@ -91,14 +93,41 @@ td{padding:8px;border-top:1px solid #1f2937}
 
 </div>
 
+<!-- モーダル -->
+<div id="modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7)">
+<div style="background:#111827;padding:20px;max-width:400px;margin:100px auto;border-radius:10px">
+
+<h3>編集</h3>
+
+<input id="m_name"><br><br>
+
+<select id="m_priority">
+<option>高</option><option>中</option><option>低</option>
+</select><br><br>
+
+<input id="m_deadline" type="date"><br><br>
+<input id="m_estimate" type="number"><br><br>
+<input id="m_progress" type="number"><br><br>
+<textarea id="m_memo"></textarea><br><br>
+
+<button onclick="saveModal()">保存</button>
+<button onclick="closeModal()">閉じる</button>
+
+</div>
+</div>
+
+</div>
+
 <script>
+
 const $=id=>document.getElementById(id);
 
 let tasks=JSON.parse(localStorage.getItem('tasks')||'[]');
+let currentId=null;
 
-/* ===== AIスコア ===== */
+/* ===== AI ===== */
 function calcScore(t){
-let s=0, now=new Date();
+let s=0,now=new Date();
 
 if(t.progress<100)s+=100;
 if(!t.deadline)s-=200;
@@ -116,16 +145,22 @@ if(t.status==="待機")s-=100;
 return s;
 }
 
-/* ===== 状態 ===== */
+/* ===== 状態色 ===== */
 function status(t){
-if(t.status==="待機") return "🔵待機";
-if(t.progress===100) return "✅完了";
-if(!t.deadline) return "⚪";
+
+if(t.status==="待機")
+return "<span style='color:#60a5fa'>待機</span>";
+
+if(!t.deadline)
+return "<span style='color:#9ca3af'>バックログ</span>";
+
 let d=(new Date(t.deadline)-new Date())/86400000;
-if(d<0) return "🔴遅延";
-if(t.estimate>d) return "🟠危険";
-if(d<2) return "🟡注意";
-return "✅正常";
+
+if(d<0) return "<span style='color:#ef4444'>遅延</span>";
+if(t.estimate>d) return "<span style='color:#f97316'>危険</span>";
+if(d<2) return "<span style='color:#facc15'>注意</span>";
+
+return "正常";
 }
 
 /* ===== 残日数 ===== */
@@ -147,9 +182,9 @@ for(let t of list){
 if(remainH<=0) break;
 
 let total=t.estimate*6;
-let rem=total*(1-t.progress/100);
+let r=total*(1-t.progress/100);
+let use=Math.min(r,remainH);
 
-let use=Math.min(rem,remainH);
 if(use<=0) continue;
 
 res.push(`・${t.name}（${Math.round(use)}h）`);
@@ -172,12 +207,18 @@ tasks.forEach(t=>{
 /* 一覧 */
 let row=`
 <tr>
-<td>${t.name}</td>
+<td onclick="openEdit(${t.id})">${t.name}</td>
 <td><span class="badge ${t.priority}">${t.priority}</span></td>
 <td>${status(t)}</td>
-<td>${t.deadline||""}</td>
-<td>${t.progress}%（残 ${remain(t)}日）</td>
-<td>${t.memo||""}</td>
+<td onclick="openEdit(${t.id})">${t.deadline||""}</td>
+<td onclick="openEdit(${t.id})">
+${t.progress}% <span class="small">(残 ${remain(t)}日)</span>
+</td>
+<td onclick="toggleMemo(this)">
+${shortMemo(t.memo)}
+<div class="full" style="display:none">${t.memo||""}</div>
+</td>
+<td><button onclick="del(${t.id})">×</button></td>
 </tr>
 `;
 tbody.innerHTML+=row;
@@ -189,19 +230,19 @@ c.style.background=getColor(t);
 
 c.innerHTML=`
 <b>${t.name}</b>
-<div class="small">${t.deadline||""}</div>
+<div class="small">${t.deadline||"なし"}</div>
 <div style="height:4px;background:#000;margin-top:5px">
 <div style="width:${t.progress}%;height:100%;background:#3b82f6"></div>
 </div>
 `;
 
+c.onclick=()=>openEdit(t.id);
 c.draggable=true;
 c.ondragstart=e=>e.dataTransfer.setData("id",t.id);
 
-/* 列 */
 let col=
 t.status==="待機"?"waiting":
-t.progress===100?"doneK":
+t.progress==100?"doneK":
 t.progress>0?"doing":"todo";
 
 $(col).appendChild(c);
@@ -211,32 +252,42 @@ $(col).appendChild(c);
 renderTodaySchedule();
 }
 
-/* ===== 色 ===== */
-function getColor(t){
-if(t.status==="待機") return "#1e3a8a";
-
-let d=(new Date(t.deadline)-new Date())/86400000;
-
-if(d<0) return "#7f1d1d";
-if(t.estimate>d) return "#78350f";
-if(d<2) return "#92400e";
-return "#1f2937";
+/* ===== メモ ===== */
+function shortMemo(m){
+return !m?"":m.length>20?m.slice(0,20)+"...":m;
 }
 
-/* ===== 追加 ===== */
-$("addBtn").onclick=()=>{
-tasks.push({
-id:Date.now(),
-name:name.value,
-priority:priority.value,
-deadline:deadline.value,
-estimate:+estimate.value||1,
-progress:0,
-memo:memo.value,
-status:"未着手"
-});
+function toggleMemo(td){
+let f=td.querySelector(".full");
+f.style.display=f.style.display==="none"?"block":"none";
+}
+
+/* ===== モーダル ===== */
+function openEdit(id){
+let t=tasks.find(x=>x.id==id);
+currentId=id;
+m_name.value=t.name;
+m_priority.value=t.priority;
+m_deadline.value=t.deadline||"";
+m_estimate.value=t.estimate;
+m_progress.value=t.progress;
+m_memo.value=t.memo||"";
+modal.style.display="block";
+}
+
+function closeModal(){modal.style.display="none";}
+
+function saveModal(){
+let t=tasks.find(x=>x.id==currentId);
+t.name=m_name.value;
+t.priority=m_priority.value;
+t.deadline=m_deadline.value;
+t.estimate=+m_estimate.value;
+t.progress=+m_progress.value;
+t.memo=m_memo.value;
+closeModal();
 save();
-};
+}
 
 /* ===== 保存 ===== */
 function save(){
@@ -244,17 +295,41 @@ localStorage.setItem('tasks',JSON.stringify(tasks));
 render();
 }
 
+/* ===== 削除 ===== */
+function del(id){
+tasks=tasks.filter(t=>t.id!=id);
+save();
+}
+
 /* ===== DnD ===== */
 function allowDrop(e){e.preventDefault();}
 function drop(e,s){
 let id=+e.dataTransfer.getData("id");
 let t=tasks.find(x=>x.id==id);
+
 t.status=s;
+
 if(s==="完了")t.progress=100;
+else if(s==="未着手")t.progress=0;
+
 save();
 }
 
-/* ===== タブ ===== */
+/* ===== 色 ===== */
+function getColor(t){
+
+if(t.status==="待機") return "#1e3a8a";
+
+let d=(new Date(t.deadline)-new Date())/86400000;
+
+if(d<0) return "#7f1d1d";
+if(t.estimate>d) return "#78350f";
+if(d<2) return "#92400e";
+
+return "#1f2937";
+}
+
+/* ===== UI ===== */
 btnTable.onclick=()=>{
 tableView.style.display="block";
 kanbanView.style.display="none";
@@ -265,8 +340,13 @@ tableView.style.display="none";
 kanbanView.style.display="grid";
 };
 
+document.addEventListener("keydown",e=>{
+if(e.key==="Escape")closeModal();
+});
+
 btnTable.click();
 render();
+
 </script>
 </body>
 </html>
