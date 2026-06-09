@@ -5,10 +5,16 @@
 <title>TaskFlow Ultimate FINAL</title>
 
 <style>
-body{background:#0b1020;color:#e5e7eb;font-family:sans-serif;margin:0}
+body{background:#0f172a;color:#e5e7eb;font-family:sans-serif;margin:0}
 .wrap{max-width:1800px;margin:auto;padding:20px 40px}
 
-.card{background:#111827;border:1px solid #1f2937;border-radius:12px;padding:14px;margin-bottom:14px}
+.card{
+background:#1e293b;
+border:1px solid #1f2937;
+border-radius:12px;
+padding:14px;
+margin-bottom:14px
+}
 
 button,input,select,textarea{
 background:#0f172a;border:1px solid #1f2937;color:white;padding:6px;border-radius:6px
@@ -22,7 +28,7 @@ tbody tr:hover{background:#1f2937}
 
 /* 列幅 */
 th:nth-child(1){width:32%}
-th:nth-child(2){width:5%;text-align:center}
+th:nth-child(2),td:nth-child(2){width:5%;text-align:center}
 th:nth-child(3){width:10%}
 th:nth-child(4){width:12%}
 th:nth-child(5){width:15%}
@@ -33,23 +39,27 @@ th:nth-child(7){width:4%}
 td{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 td:nth-child(6){white-space:normal}
 
-/* ✅ 優先＝丸シンボル */
+/* ✅ 優先（丸＆明るめ） */
 .badge{
-  display:inline-block;
-  width:12px;
-  height:12px;
-  border-radius:50%;
+display:inline-block;
+width:12px;
+height:12px;
+border-radius:50%;
 }
-.高{background:#7f1d1d;}
-.中{background:#78350f;}
-.低{background:#14532d;}
+.高{background:#b91c1c;}
+.中{background:#c2410c;}
+.低{background:#166534;}
 
 /* ===== カンバン ===== */
 .kanban{display:none;grid-template-columns:repeat(4,1fr);gap:16px}
 
 .task{
-  padding:8px;margin:6px;border-radius:8px;
-  cursor:pointer;font-size:12px;transition:.2s
+padding:8px;
+margin:6px;
+border-radius:8px;
+cursor:pointer;
+font-size:12px;
+transition:.2s
 }
 .task:hover{transform:scale(1.02)}
 
@@ -90,8 +100,8 @@ td:nth-child(6){white-space:normal}
 </div>
 
 <div class="card">
-<button id="btnList">一覧</button>
-<button id="btnBoard">カンバン</button>
+<button id="btnList">📋一覧</button>
+<button id="btnBoard">📊カンバン</button>
 </div>
 
 <!-- 一覧 -->
@@ -111,7 +121,7 @@ td:nth-child(6){white-space:normal}
 <tbody id="tbody"></tbody>
 </table>
 
-<h3 onclick="toggleDone()">完了 (<span id="doneCount"></span>)</h3>
+<h3 onclick="toggleDone()">✅ 完了 (<span id="doneCount"></span>)</h3>
 <div id="doneWrap" style="display:none">
 <table><tbody id="done"></tbody></table>
 </div>
@@ -178,6 +188,7 @@ progress:0,
 memo:$("memo").value,
 status:"未着手"
 });
+
 ["name","deadline","estimate","memo"].forEach(i=>$(i).value="");
 save();
 };
@@ -196,15 +207,15 @@ if(d<2) return "<span style='color:#facc15'>注意</span>";
 return "正常";
 }
 
-/* カンバン色 */
+/* カンバン色（明るめ） */
 function color(t){
-if(t.status==="待機") return "#1e3a8a";
+if(t.status==="待機") return "#1e40af";
 
 let d=(new Date(t.deadline)-new Date())/86400000;
 
-if(d<0) return "#991b1b";
-if(t.estimate>d) return "#92400e";
-if(d<2) return "#854d0e";
+if(d<0) return "#dc2626";
+if(t.estimate>d) return "#ea580c";
+if(d<2) return "#d97706";
 
 return "#1f2937";
 }
@@ -222,37 +233,36 @@ return (da-a.estimate)-(db-b.estimate);
 });
 }
 
-/* ✅ 今日（復旧版） */
+/* 今日 */
 function renderToday(){
 
-  let list=tasks.filter(t=>t.progress<100 && t.deadline);
+let list=tasks.filter(t=>t.progress<100 && t.deadline);
 
-  list.sort((a,b)=>{
-    let da=(new Date(a.deadline)-new Date())/86400000;
-    let db=(new Date(b.deadline)-new Date())/86400000;
-    return (da-a.estimate)-(db-b.estimate);
-  });
+list.sort((a,b)=>{
+let da=(new Date(a.deadline)-new Date())/86400000;
+let db=(new Date(b.deadline)-new Date())/86400000;
+return (da-a.estimate)-(db-b.estimate);
+});
 
-  let h=6;
-  let res=[];
+let h=6,res=[];
 
-  for(let t of list){
+for(let t of list){
 
-    if(h<=0) break;
+if(h<=0) break;
 
-    let remain=t.estimate*(1-t.progress/100);
-    let need=remain*6;
+let remain=t.estimate*(1-t.progress/100);
+let need=remain*6;
 
-    let use=Math.min(h,need);
+let use=Math.min(h,need);
 
-    if(use<=0) continue;
+if(use<=0) continue;
 
-    res.push(`・${t.name} (${Math.round(use)}h)`);
+res.push(`・${t.name} (${Math.round(use)}h)`);
 
-    h-=use;
-  }
+h-=use;
+}
 
-  $("today").innerHTML=res.join("<br>")||"なし";
+$("today").innerHTML=res.join("<br>")||"なし";
 }
 
 /* 描画 */
@@ -434,5 +444,6 @@ $("btnList").click();
 render();
 
 </script>
+
 </body>
 </html>
