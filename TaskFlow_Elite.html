@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>TaskFlow AI Pro</title>
+
 <style>
 :root{
 --bg:#0b1020;
@@ -11,13 +12,16 @@
 --text:#e5e7eb;
 --muted:#9ca3af;
 }
+
 body{
 margin:0;
 background:var(--bg);
 color:var(--text);
 font-family:Segoe UI,Inter;
 }
+
 .wrap{max-width:1100px;margin:auto;padding:20px;}
+
 .card{
 background:var(--panel);
 border:1px solid var(--border);
@@ -25,6 +29,7 @@ border-radius:12px;
 padding:16px;
 margin-bottom:14px;
 }
+
 button,input,select{
 background:#0f172a;
 border:1px solid var(--border);
@@ -32,21 +37,42 @@ color:white;
 padding:6px;
 border-radius:6px;
 }
+
 button{cursor:pointer;}
 button:hover{background:#374151;}
+
 table{width:100%;border-collapse:collapse;}
 td,th{padding:10px;border-top:1px solid var(--border);}
+
 .badge{padding:2px 6px;border-radius:999px;font-size:12px;}
 .高{background:#7f1d1d;}
 .中{background:#78350f;}
 .低{background:#14532d;}
-.task{padding:8px;margin:5px;border-radius:8px;cursor:grab;}
+
 .kanban{display:none;grid-template-columns:repeat(4,1fr);gap:10px;}
+.task{padding:8px;margin:5px;border-radius:8px;cursor:grab;}
+
 .small{font-size:12px;color:var(--muted);}
+
+/* スクロール */
+.table-scroll{
+max-height:350px;
+overflow-y:auto;
+border:1px solid #1f2937;
+border-radius:8px;
+}
+
+.table-scroll thead th{
+position:sticky;
+top:0;
+background:#111827;
+}
 </style>
 </head>
+
 <body>
 <div class="wrap">
+
 <h2>🤖 TaskFlow AI Pro</h2>
 
 <div class="card">
@@ -60,7 +86,9 @@ td,th{padding:10px;border-top:1px solid var(--border);}
 
 <div class="card">
 <input id="name" placeholder="タスク">
-<select id="priority"><option>高</option><option>中</option><option>低</option></select>
+<select id="priority">
+<option>高</option><option>中</option><option>低</option>
+</select>
 <input id="deadline" type="date">
 <input id="estimate" type="number" placeholder="日数">
 <input id="progressNum" value="0">
@@ -75,6 +103,10 @@ td,th{padding:10px;border-top:1px solid var(--border);}
 </div>
 
 <div id="tableView" class="card">
+
+<h3>📋 未完了</h3>
+
+<div class="table-scroll">
 <table>
 <thead>
 <tr>
@@ -85,6 +117,18 @@ td,th{padding:10px;border-top:1px solid var(--border);}
 </thead>
 <tbody id="tbody"></tbody>
 </table>
+</div>
+
+<h3 onclick="toggleDoneTable()" style="cursor:pointer;margin-top:20px;">
+✅ 完了 (<span id="doneCount"></span>)
+</h3>
+
+<div id="doneWrap">
+<table>
+<tbody id="doneTable"></tbody>
+</table>
+</div>
+
 </div>
 
 <div id="kanbanView" class="kanban">
@@ -112,15 +156,18 @@ td,th{padding:10px;border-top:1px solid var(--border);}
 const $=id=>document.getElementById(id);
 let tasks=JSON.parse(localStorage.getItem('tasks')||'[]');
 let logs=JSON.parse(localStorage.getItem('logs')||'[]');
-let hideDone=false;
 
-/* 保存（常にAIソート） */
+let hideDone=false;
+let showDone=false;
+
+/* 保存（AIソート） */
 function save(){
 tasks.sort((a,b)=>{
 if(!a.deadline&&b.deadline)return 1;
 if(a.deadline&&!b.deadline)return -1;
 return calcScore(b)-calcScore(a);
 });
+
 localStorage.setItem('tasks',JSON.stringify(tasks));
 render();recommend();renderWeek();renderLogs();
 }
@@ -135,6 +182,7 @@ localStorage.setItem('logs',JSON.stringify(logs));
 /* 追加 */
 $("addBtn").onclick=()=>{
 if(!$("name").value) return;
+
 let t={
 id:Date.now(),
 name:$("name").value,
@@ -145,19 +193,24 @@ progress:+$("progressNum").value||0,
 memo:$("memo").value,
 status:"未着手"
 };
+
 tasks.push(t);
 addLog("追加："+t.name);
 
-/* 入力リセット */
+/* リセット */
 ["name","deadline","estimate","memo"].forEach(id=>$(id).value="");
 $("progressNum").value=0;
 
 save();
 };
 
-/* Enter追加 */
-document.addEventListener("keydown",e=>{
-if(e.key==="Enter") $("addBtn").click();
+/* Enter（安全） */
+document.addEventListener("keydown", e=>{
+const a=document.activeElement;
+if(e.key==="Enter" && a.id==="name"){
+e.preventDefault();
+$("addBtn").click();
+}
 });
 
 /* フィルタ */
@@ -166,7 +219,7 @@ hideDone=!hideDone;
 render();
 }
 
-/* AIスコア */
+/* AI */
 function calcScore(t){
 let s=0,now=new Date();
 if(t.progress<100)s+=100;
@@ -181,15 +234,103 @@ if(t.priority=="高")s+=30;
 return s;
 }
 
-/* 状態 */
+/* 更新 */
+function updateField(id,field,value){
+let t=tasks.find(x=>x.id==id);
+
+if(field==="estimate") value=+value;
+
+t[field]=value;
+save();
+}
+
+function updateProgress(id,v){
+let t=tasks.find(x=>x.id==id);
+t.progress=+v;
+
+if(v==100){
+t.status="完了";
+t.completedAt=new Date().toISOString();
+addLog("完了："+t.name);
+}else if(v==0)t.status="未着手";
+else t.status="進行中";
+
+save();
+}
+
+function quickDone(id){updateProgress(id,100);}
+
+function del(id){
+addLog("削除："+tasks.find(t=>t.id==id).name);
+tasks=tasks.filter(t=>t.id!=id);
+save();
+}
+
+/* 描画 */
+function render(){
+$("tbody").innerHTML="";
+$("doneTable").innerHTML="";
+
+let doneCount=0;
+
+tasks.forEach(t=>{
+if(hideDone && t.progress==100) return;
+
+let row=`
+<tr ${t.progress==100?"style='opacity:0.5'":""}>
+<td><input value="${t.name}" onchange="updateField(${t.id},'name',this.value)"></td>
+<td>
+<select onchange="updateField(${t.id},'priority',this.value)">
+<option ${t.priority=="高"?"selected":""}>高</option>
+<option ${t.priority=="中"?"selected":""}>中</option>
+<option ${t.priority=="低"?"selected":""}>低</option>
+</select>
+</td>
+<td>${statusLabel(t)}</td>
+<td><input type="number" value="${t.estimate||0}"
+onchange="updateField(${t.id},'estimate',this.value)"></td>
+<td><input type="date" value="${t.deadline||""}"
+onchange="updateField(${t.id},'deadline',this.value)"></td>
+<td>${remain(t)}</td>
+<td>
+<input type="range" value="${t.progress}"
+oninput="updateProgress(${t.id},this.value)">
+<button onclick="quickDone(${t.id})">✔</button>
+${t.progress}%
+</td>
+<td><input value="${t.memo||""}"
+oninput="updateField(${t.id},'memo',this.value)"></td>
+<td><button onclick="del(${t.id})">×</button></td>
+</tr>
+`;
+
+if(t.progress==100){
+doneCount++;
+$("doneTable").innerHTML+=row;
+}else{
+$("tbody").innerHTML+=row;
+}
+});
+
+$("doneCount").innerText=doneCount;
+$("doneWrap").style.display=showDone?"block":"none";
+}
+
+/* 折りたたみ */
+function toggleDoneTable(){
+showDone=!showDone;
+render();
+}
+
+/* その他 */
 function statusLabel(t){
 if(t.status==="待機") return "待機";
 if(t.progress===100) return "完了";
 if(!t.deadline) return "バックログ";
 let d=(new Date(t.deadline)-new Date())/86400000;
-if(d<0) return "<span style='color:#ef4444'>遅延</span>";
-if(t.estimate>d) return "<span style='color:#f97316'>危険</span>";
-if(d<2) return "<span style='color:#facc15'>注意</span>";
+if(d<0) return "遅延";
+if(t.estimate>d) return "危険";
+if(d<2) return "注意";
 return "正常";
 }
 
@@ -197,29 +338,13 @@ function remain(t){
 return Math.round(t.estimate*(1-t.progress/100));
 }
 
-function getColor(t){
-if(!t.deadline) return "#374151";
-let d=(new Date(t.deadline)-new Date())/86400000;
-if(d<0)return "#7f1d1d";
-if(t.estimate>d)return "#78350f";
-if(d<2)return "#92400e";
-return "#1f2937";
-}
-
-function recentDone(t){
-return t.completedAt && (new Date()-new Date(t.completedAt))<7*86400000;
-}
-
-/* AIおすすめ */
 function recommend(){
 let list=tasks.filter(t=>t.deadline && t.progress<100);
 if(!list.length){$("recommend").innerText="OK";return;}
 let best=list[0];
-$("recommend").innerHTML=`<div class="small">🔥 今やるべき</div>
-<b onclick="focusTask(${best.id})" style="cursor:pointer">${best.name}</b>`;
+$("recommend").innerHTML=`🔥 <b onclick="focusTask(${best.id})" style="cursor:pointer">${best.name}</b>`;
 }
 
-/* 今週 */
 function renderWeek(){
 let now=new Date();
 let list=tasks.filter(t=>{
@@ -229,88 +354,8 @@ return t.deadline && (d-now)/86400000<=7 && (d-now)>=0;
 $("weekTasks").innerHTML=list.map(t=>`${t.deadline} ${t.name}`).join("<br>")||"なし";
 }
 
-/* 描画 */
-function render(){
-$("tbody").innerHTML="";
-["todo","doing","waiting","kanbanDone"].forEach(id=>$(id).innerHTML="");
-
-tasks.forEach(t=>{
-if(hideDone && t.progress==100) return;
-
-let row=`
-<tr ${t.progress==100?"style='opacity:0.5'":""}>
-<td>${t.name}</td>
-<td><span class="badge ${t.priority}">${t.priority}</span></td>
-<td>${statusLabel(t)}</td>
-<td>${t.estimate||""}</td>
-<td>${t.deadline||""}</td>
-<td>${remain(t)}</td>
-<td>
-<input type="range" value="${t.progress}" oninput="updateProgress(${t.id},this.value)">
-<button onclick="quickDone(${t.id})">✔</button>
-${t.progress}%
-</td>
-<td class="small">${t.memo||""}</td>
-<td><button onclick="del(${t.id})">×</button></td>
-</tr>`;
-$("tbody").innerHTML+=row;
-
-/* カンバン */
-let c=document.createElement("div");
-c.className="task";
-c.style.background=getColor(t);
-c.textContent=`${t.name} (${t.progress}%)`;
-c.draggable=true;
-c.ondragstart=e=>e.dataTransfer.setData("id",t.id);
-
-if(t.status==="完了" && recentDone(t)){
-$("kanbanDone").appendChild(c);
-}else if(t.status!=="完了"){
-let col={未着手:"todo",進行中:"doing",待機:"waiting"}[t.status];
-$(col).appendChild(c);
-}
-});
-}
-
-/* 操作 */
-function updateProgress(id,v){
-let t=tasks.find(x=>x.id==id);
-t.progress=+v;
-if(v==100){
-t.status="完了";
-t.completedAt=new Date().toISOString();
-addLog("完了："+t.name);
-}else if(v==0)t.status="未着手";
-else t.status="進行中";
-save();
-}
-
-function quickDone(id){
-updateProgress(id,100);
-}
-
-function del(id){
-addLog("削除："+tasks.find(x=>x.id==id).name);
-tasks=tasks.filter(x=>x.id!=id);
-save();
-}
-
-function allowDrop(e){e.preventDefault();}
-function drop(e,status){
-let t=tasks.find(x=>x.id==+e.dataTransfer.getData("id"));
-t.status=status;
-if(status==="完了"){t.progress=100;addLog("完了："+t.name);}
-if(status==="未着手") t.progress=0;
-save();
-}
-
 function focusTask(id){
 viewTable();
-document.querySelectorAll("tr").forEach(tr=>{
-if(tr.innerText.includes(tasks.find(t=>t.id==id).name)){
-tr.style.background="#1f2937";
-}
-});
 }
 
 function viewTable(){
@@ -328,5 +373,6 @@ $("logList").innerHTML=logs.map(l=>`${l.time} - ${l.text}`).join("<br>");
 
 render();recommend();renderWeek();renderLogs();
 </script>
+
 </body>
 </html>
