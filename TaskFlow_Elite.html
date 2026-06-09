@@ -10,7 +10,8 @@ body{background:#0b1020;color:#e5e7eb;font-family:Segoe UI;margin:0}
 .card{background:#111827;border:1px solid #1f2937;border-radius:12px;padding:16px;margin-bottom:14px}
 
 button,input,select{
-background:#0f172a;border:1px solid #1f2937;color:white;padding:8px 12px;border-radius:6px;cursor:pointer
+background:#0f172a;border:1px solid #1f2937;color:white;
+padding:8px 12px;border-radius:6px;cursor:pointer
 }
 
 .active-tab{background:#3b82f6 !important}
@@ -22,9 +23,6 @@ td,th{padding:8px;border-top:1px solid #1f2937}
 .高{background:#7f1d1d}
 .中{background:#78350f}
 .低{background:#14532d}
-
-.table-scroll{max-height:350px;overflow:auto}
-.table-scroll thead th{position:sticky;top:0;background:#111827}
 
 .task{padding:8px;margin:6px;border-radius:8px;cursor:pointer;font-size:13px}
 .kanban{display:none;grid-template-columns:repeat(3,1fr);gap:10px}
@@ -43,7 +41,6 @@ td,th{padding:8px;border-top:1px solid #1f2937}
 <div id="recommend"></div>
 </div>
 
-<!-- 今週 -->
 <div class="card">
 <b>📆 今週</b>
 <div id="week"></div>
@@ -70,7 +67,6 @@ td,th{padding:8px;border-top:1px solid #1f2937}
 <div id="tableView" class="card">
 
 <h3>📋 未完了</h3>
-<div class="table-scroll">
 <table>
 <thead>
 <tr>
@@ -79,7 +75,6 @@ td,th{padding:8px;border-top:1px solid #1f2937}
 </thead>
 <tbody id="tbody"></tbody>
 </table>
-</div>
 
 <h3 onclick="toggleDone()" style="cursor:pointer">
 ✅ 完了 (<span id="doneCount"></span>)
@@ -94,19 +89,22 @@ td,th{padding:8px;border-top:1px solid #1f2937}
 <!-- カンバン -->
 <div id="kanbanView" class="kanban">
 
-<div class="card"><h4>未着手</h4><div id="todo"></div></div>
-<div class="card"><h4>進行中</h4><div id="doing"></div></div>
-<div class="card"><h4>完了</h4><div id="doneK"></div></div>
+<div class="card" ondrop="drop(event,'未着手')" ondragover="allowDrop(event)">
+<h4>未着手</h4><div id="todo"></div></div>
+
+<div class="card" ondrop="drop(event,'進行中')" ondragover="allowDrop(event)">
+<h4>進行中</h4><div id="doing"></div></div>
+
+<div class="card" ondrop="drop(event,'完了')" ondragover="allowDrop(event)">
+<h4>完了</h4><div id="doneK"></div></div>
 
 </div>
 
 <!-- モーダル -->
 <div id="modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7)">
-
 <div style="background:#111827;padding:20px;max-width:400px;margin:100px auto;border-radius:10px">
 
 <h3>タスク編集</h3>
-
 <input id="m_name"><br><br>
 
 <select id="m_priority">
@@ -114,9 +112,7 @@ td,th{padding:8px;border-top:1px solid #1f2937}
 </select><br><br>
 
 <input id="m_deadline" type="date"><br><br>
-
 <input id="m_estimate" type="number"><br><br>
-
 <input id="m_progress" type="number" min="0" max="100"><br><br>
 
 <button onclick="saveModal()">保存</button>
@@ -128,7 +124,6 @@ td,th{padding:8px;border-top:1px solid #1f2937}
 </div>
 
 <script>
-
 const $=id=>document.getElementById(id);
 
 let tasks=JSON.parse(localStorage.getItem('tasks')||'[]');
@@ -140,17 +135,17 @@ function calcScore(t){
 let s=0;
 let now=new Date();
 
-if(t.progress<100) s+=100;
-if(!t.deadline) s-=120;
+if(t.progress<100)s+=100;
+if(!t.deadline)s-=120;
 
 if(t.deadline){
 let d=(new Date(t.deadline)-now)/86400000;
 s+=30-d;
-if(t.estimate>d) s+=(t.estimate-d)*20;
+if(t.estimate>d)s+=(t.estimate-d)*20;
 }
 
 s+=(100-t.progress)*0.5;
-if(t.priority=="高") s+=30;
+if(t.priority=="高")s+=30;
 
 return s;
 }
@@ -159,9 +154,7 @@ return s;
 function save(){
 tasks.sort((a,b)=>calcScore(b)-calcScore(a));
 localStorage.setItem('tasks',JSON.stringify(tasks));
-render();
-recommend();
-renderWeek();
+render();recommend();renderWeek();
 }
 
 /* 追加 */
@@ -239,15 +232,12 @@ ${!t.parentId?`<button onclick="addChild(${t.id})">＋</button>`:""}
 </tr>
 `;
 
-if(t.progress==100){
-done.innerHTML+=row;
-count++;
-}else{
-tbody.innerHTML+=row;
-}
+if(t.progress==100){done.innerHTML+=row;count++;}
+else{tbody.innerHTML+=row;}
 
-/* カンバン（子のみ） */
+/* カンバン */
 if(t.parentId){
+
 let c=document.createElement("div");
 c.className="task";
 c.style.background=getColor(t);
@@ -255,13 +245,19 @@ c.style.background=getColor(t);
 c.innerHTML=`
 <div class="small">${parent.name}</div>
 <b>${t.name}</b>
-<div class="small">${t.priority} ${t.deadline||""}</div>
+<div class="small">${t.deadline||"なし"} ・ ${t.priority}</div>
+<div style="height:4px;background:#000;margin-top:5px;border-radius:3px;">
+<div style="width:${t.progress}%;height:100%;background:#3b82f6"></div>
+</div>
 `;
 
 c.onclick=()=>openEdit(t.id);
+c.draggable=true;
+c.ondragstart=e=>e.dataTransfer.setData("id",t.id);
 
-let col=t.progress==100?"doneK":t.progress>0?"doing":"todo";
+let col=(t.progress==100)?"doneK":(t.progress>0?"doing":"todo");
 $(col).appendChild(c);
+
 }
 
 }
@@ -272,14 +268,14 @@ doneWrap.style.display=showDone?"block":"none";
 
 /* ステータス */
 function status(t){
-if(t.progress==100) return "完了";
-if(!t.deadline) return "バックログ";
+if(t.progress==100)return "完了";
+if(!t.deadline)return "<span style='color:#9ca3af'>バックログ</span>";
 
 let d=(new Date(t.deadline)-new Date())/86400000;
 
-if(d<0) return "<span style='color:#ef4444'>遅延</span>";
-if(t.estimate>d) return "<span style='color:#f97316'>危険</span>";
-if(d<2) return "<span style='color:#facc15'>注意</span>";
+if(d<0)return "<span style='color:#ef4444'>遅延</span>";
+if(t.estimate>d)return "<span style='color:#f97316'>危険</span>";
+if(d<2)return "<span style='color:#facc15'>注意</span>";
 
 return "正常";
 }
@@ -287,10 +283,7 @@ return "正常";
 /* AIおすすめ */
 function recommend(){
 let list=tasks.filter(t=>t.progress<100 && t.deadline);
-if(!list.length){
-$("recommend").innerText="OK";
-return;
-}
+if(!list.length){$("recommend").innerText="OK";return;}
 let best=list[0];
 $("recommend").innerHTML=`🔥 今やるべき<br><b onclick="openEdit(${best.id})">${best.name}</b>`;
 }
@@ -298,51 +291,59 @@ $("recommend").innerHTML=`🔥 今やるべき<br><b onclick="openEdit(${best.id
 /* 今週 */
 function renderWeek(){
 let now=new Date();
-
 let list=tasks.filter(t=>{
-if(!t.deadline) return false;
+if(!t.deadline)return false;
 let d=new Date(t.deadline);
 let diff=(d-now)/86400000;
 return diff>=0 && diff<=7;
 });
-
-$("week").innerHTML=
-list.map(t=>`${t.deadline} ${t.name}`).join("<br>")
-|| "なし";
+$("week").innerHTML=list.map(t=>`${t.deadline} ${t.name}`).join("<br>")||"なし";
 }
 
 /* モーダル */
 function openEdit(id){
 let t=tasks.find(x=>x.id==id);
 currentId=id;
-
 m_name.value=t.name;
 m_priority.value=t.priority;
 m_deadline.value=t.deadline||"";
-m_estimate.value=t.estimate||0;
+m_estimate.value=t.estimate;
 m_progress.value=t.progress;
-
 modal.style.display="block";
 }
 
-function closeModal(){
-modal.style.display="none";
-}
+function closeModal(){modal.style.display="none";}
 
 function saveModal(){
 let t=tasks.find(x=>x.id==currentId);
-
 t.name=m_name.value;
 t.priority=m_priority.value;
 t.deadline=m_deadline.value;
 t.estimate=+m_estimate.value;
 t.progress=+m_progress.value;
+closeModal();save();
+}
 
-closeModal();
+/* ドラッグ */
+function allowDrop(e){e.preventDefault();}
+
+function drop(e,status){
+let id=+e.dataTransfer.getData("id");
+let t=tasks.find(x=>x.id==id);
+
+t.status=status;
+
+if(status==="完了"){t.progress=100;}
+else if(status==="未着手"){t.progress=0;}
+else if(t.progress==0){t.progress=10;}
+
 save();
 }
 
-/* 表示切替 */
+/* UI */
+function toggleDone(){showDone=!showDone;render();}
+function del(id){tasks=tasks.filter(t=>t.id!=id);save();}
+
 function viewTable(){
 tableView.style.display="block";
 kanbanView.style.display="none";
@@ -357,31 +358,27 @@ btnKanban.classList.add("active-tab");
 btnTable.classList.remove("active-tab");
 }
 
-/* その他 */
-function toggleDone(){showDone=!showDone;render();}
-function del(id){tasks=tasks.filter(t=>t.id!=id);save();}
+/* 色 */
 function getColor(t){
 if(!t.deadline)return "#374151";
-let d=new Date(t.deadline)-new Date();
+let d=(new Date(t.deadline)-new Date())/86400000;
 if(d<0)return "#7f1d1d";
 if(t.estimate>d)return "#78350f";
-if(d<86400000*2)return "#92400e";
+if(d<2)return "#92400e";
 return "#1f2937";
 }
 
+/* キー操作 */
 document.addEventListener("keydown",e=>{
-if(e.key==="Escape") closeModal();
+if(e.key==="Escape")closeModal();
 if(e.key==="Enter" && document.activeElement.id==="name"){
-e.preventDefault();
-addBtn.click();
-}
+e.preventDefault();addBtn.click();}
 });
 
-/* 初期 */
 viewTable();
-render();recommend();renderWeek();
-
+render();
+recommend();
+renderWeek();
 </script>
 </body>
 </html>
-``
