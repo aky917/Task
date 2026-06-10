@@ -302,9 +302,13 @@ if(d<DAY_HOURS*2) return "⏳ <span style='color:#f59e0b'>注意</span>";
 return "✅ 正常";
 }
 
+
+
+  
 /* today強化 */
 function renderToday(){
-let h=DAY_HOURS,today=[],carry=[];
+let h=DAY_HOURS, today=[], carry=[];
+let carryTotal=0;
 
 tasks
 .filter(t=>t.progress<100)
@@ -314,24 +318,49 @@ let r=t.estimate*(1-t.progress/100);
 
 if(h>0){
 let use=Math.min(h,r);
-today.push(`・${t.name} (${use.toFixed(1)}h)`);
+today.push(`・${esc(t.name)} (${use.toFixed(1)}h)`);
 h-=use;
 
-if(r>use)carry.push(`・${t.name} 残${(r-use).toFixed(1)}h`);
+if(r>use){
+carry.push({name:t.name,remain:(r-use)});
+carryTotal+=(r-use);
+}
 }else{
-carry.push(`・${t.name} (${r.toFixed(1)}h)`);
+carry.push({name:t.name,remain:r});
+carryTotal+=r;
 }
 });
 
-let text=today.join("<br>")||"なし";
+/* 今日 */
+let text = today.join("<br>") || "なし";
 
+/* 明日以降 */
 if(carry.length){
-text+="<hr>明日以降<br>"+carry.slice(0,3).join("<br>");
+text += "<hr>明日以降<br>";
+
+let top = carry.slice(0,3);
+let others = carry.slice(3);
+
+/* 上位3件 */
+top.forEach(c=>{
+text += `・${esc(c.name)} (${c.remain.toFixed(1)}h)<br>`;
+});
+
+/* その他合計 */
+if(others.length){
+let otherTotal = others.reduce((sum,c)=>sum+c.remain,0);
+
+text += `<div style="margin-top:6px;color:#9ca3af">
+その他: ${otherTotal.toFixed(1)}h
+</div>`;
+}
 }
 
-$("today").innerHTML=text;
+$("today").innerHTML = text;
 }
 
+
+  
 /* 描画 */
 function render(){
 autoStatus();
