@@ -14,25 +14,61 @@ background:#0f172a;border:1px solid #1f2937;color:white;padding:6px;border-radiu
 transition:.15s;cursor:pointer;
 }
 
-button:hover{background:#1f2937;transform:translateY(-1px)}
-button:active{transform:translateY(1px) scale(0.97)}
+/* ボタン */
+button:hover{background:#1f2937;transform:translateY(-1px);}
+button:active{transform:translateY(1px) scale(0.97);filter:brightness(.85);}
+button:focus{outline:1px solid #3b82f6;}
 
-#addBtn{background:#2563eb}
+#addBtn{background:#2563eb;}
+#addBtn:hover{background:#3b82f6;}
+button[onclick*="del"]{background:#7f1d1d;}
+button[onclick*="del"]:hover{background:#b91c1c;}
 
-.kanban{display:none;grid-template-columns:repeat(4,1fr);gap:16px}
-
-.task{
-padding:8px;margin:6px;border-radius:8px;
-cursor:pointer;font-size:12px;
-box-shadow:0 2px 6px rgba(0,0,0,.2);
+/* フラッシュ */
+.flash{animation:flash .6s;}
+@keyframes flash{
+50%{box-shadow:0 0 20px rgba(59,130,246,.8)}
 }
 
+/* 入力バー */
+.formbar{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
+#name{width:240px}
+#memo{width:200px}
+#estimate{width:70px}
+label{font-size:11px;color:#9ca3af}
+.subbtns{display:flex;gap:6px}
+
+/* date */
+input[type="date"]{color-scheme:dark}
+input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(1);cursor:pointer}
+
+/* テーブル */
+table{width:100%;table-layout:fixed;border-collapse:collapse}
+th,td{padding:8px;border-top:1px solid #1f2937}
+th{color:#9ca3af}
+tbody tr:hover{background:#273449}
+
+/* 優先 */
+.badge{width:12px;height:12px;border-radius:50%;display:inline-block}
+.高{background:#ef4444}
+.中{background:#3b82f6}
+.低{background:#22c55e}
+
+/* カンバン */
+.kanban{display:none;grid-template-columns:repeat(4,1fr);gap:16px}
+.task{
+padding:8px;margin:6px;border-radius:8px;
+cursor:pointer;font-size:12px;transition:.2s;
+box-shadow:0 2px 6px rgba(0,0,0,.2);
+}
+.task:hover{transform:scale(1.02)}
 .small{font-size:10px;color:#9ca3af}
 
+/* トースト */
 #toast{
 position:fixed;bottom:20px;right:20px;
 background:#16a34a;color:white;
-padding:10px;border-radius:8px;
+padding:10px 16px;border-radius:8px;
 opacity:0;transform:translateY(10px);
 transition:.3s;
 }
@@ -46,26 +82,23 @@ transition:.3s;
 
 <div class="card"><b>今日の流れ</b><div id="today"></div></div>
 
-<div class="card">
-<input id="search" placeholder="検索" style="width:100%">
-</div>
+<div class="card"><input id="search" placeholder="検索" style="width:100%"></div>
 
-<div class="card">
-<input id="name" placeholder="タスク">
-<select id="priority">
-<option>高</option><option>中</option><option>低</option>
-</select>
-<input id="deadline" type="date">
-<input id="estimate" type="number" step="0.5" placeholder="工数">
-<input id="memo" placeholder="メモ">
-<button id="addBtn">追加</button>
-</div>
+<div class="card formbar">
+<div><label>タスク</label><br><input id="name" placeholder="例：資料作成"></div>
+<div><label>優先</label><br>
+<select id="priority"><option>高</option><option>中</option><option>低</option></select></div>
+<div><label>期限</label><br><input id="deadline" type="date"></div>
+<div><label>工数(h)</label><br><input id="estimate" type="number" step="0.5"></div>
+<div><label>メモ</label><br><input id="memo"></div>
+<div><button id="addBtn">追加</button></div>
 
-<div class="card">
+<div class="subbtns">
 <button onclick="copyReport()">週報</button>
 <button onclick="exportTasks()">保存</button>
 <input type="file" id="file" style="display:none" onchange="importTasks(event)">
 <button onclick="$('file').click()">復元</button>
+</div>
 </div>
 
 <div class="card">
@@ -75,12 +108,10 @@ transition:.3s;
 
 <div id="list" class="card">
 <table>
-<thead>
-<tr>
+<thead><tr>
 <th>タスク</th><th>優先</th><th>状態</th>
 <th>期限</th><th>進捗</th><th>メモ</th><th></th>
-</tr>
-</thead>
+</tr></thead>
 <tbody id="tbody"></tbody>
 </table>
 
@@ -110,9 +141,10 @@ transition:.3s;
 <label>工数</label><input id="m_estimate" style="width:100%"><br><br>
 <label>進捗</label><input id="m_progress" type="number" min="0" max="100" style="width:100%"><br><br>
 <label>メモ</label><textarea id="m_memo" style="width:100%"></textarea><br><br>
-
+<div style="display:flex;gap:10px;justify-content:flex-end">
 <button onclick="saveModal()">保存</button>
 <button onclick="closeModal()">閉じる</button>
+</div>
 
 </div>
 </div>
@@ -121,16 +153,24 @@ transition:.3s;
 
 </div>
 
+
+
 <script>
 const $=id=>document.getElementById(id);
 const DAY_HOURS=8;
 
-let tasks=JSON.parse(localStorage.getItem("tasks")||"[]");
+let tasks;
+try{
+  tasks=JSON.parse(localStorage.getItem("tasks")||"[]");
+}catch{
+  tasks=[];
+}
+
 let keyword="",showDone=false,currentId=null;
 
-/* safe date */
+/* 安全日付 */
 function safeDate(d){
-  return d ? new Date(d) : new Date("2999-12-31");
+  return d?new Date(d):new Date("2999-12-31");
 }
 
 /* 保存 */
@@ -140,9 +180,15 @@ function save(){
   showToast();
 }
 
-/* toast */
-function showToast(){
+/* バックアップ */
+setInterval(()=>{
+  localStorage.setItem("tasks_backup",JSON.stringify(tasks));
+},10000);
+
+/* Toast */
+function showToast(msg="保存しました"){
 let t=$("toast");
+t.innerText=msg;
 t.style.opacity=1;
 t.style.transform="translateY(0)";
 setTimeout(()=>{
@@ -158,11 +204,31 @@ $("addBtn").click();
 }
 });
 
+/* Ctrl+S */
+document.addEventListener("keydown",e=>{
+if(e.ctrlKey && e.key==="s"){
+e.preventDefault();
+save();
+}
+});
+
 /* 検索 */
 $("search").oninput=e=>{
 keyword=e.target.value.toLowerCase();
 render();
 };
+
+/* 自動ステータス */
+function autoStatus(){
+tasks.forEach(t=>{
+if(t.progress>=100){
+t.status="完了";
+}else if(t.status!=="待機"){
+if(t.progress>0)t.status="進行中";
+else t.status="未着手";
+}
+});
+}
 
 /* 追加 */
 $("addBtn").onclick=()=>{
@@ -184,64 +250,102 @@ status:"未着手"
 save();
 };
 
+/* スコア */
+function score(t){
+const p={高:3,中:2,低:1};
+let d=(safeDate(t.deadline)-new Date())/86400000;
+return (p[t.priority]*10)-d-t.estimate;
+}
+
 /* 並び */
 function sortTasks(){
-tasks.sort((a,b)=>{
-let da=(safeDate(a.deadline)-new Date())/86400000*DAY_HOURS;
-let db=(safeDate(b.deadline)-new Date())/86400000*DAY_HOURS;
-return (da-a.estimate)-(db-b.estimate);
-});
+tasks.sort((a,b)=>score(b)-score(a));
+}
+
+/* 色（元仕様） */
+function color(t){
+let base;
+let d=(safeDate(t.deadline)-new Date())/86400000*DAY_HOURS;
+
+if(t.status==="待機") base=[59,130,246];
+else if(!t.deadline) base=[75,85,99];
+else if(d<0) base=[239,68,68];
+else if(t.estimate>d) base=[234,179,8];
+else if(d<DAY_HOURS*2) base=[249,115,22];
+else base=[55,65,81];
+
+let f=t.priority==="高"?1:t.priority==="中"?0.75:0.55;
+return `rgb(${base.map(x=>Math.floor(x*f)).join(",")})`;
 }
 
 /* 状態 */
 function status(t){
-if(t.status==="待機") return "⏸ 待機";
+if(t.status==="待機") return "⏸ <span style='color:#60a5fa'>待機</span>";
 if(!t.deadline) return "🗂 バックログ";
 let d=(safeDate(t.deadline)-new Date())/86400000*DAY_HOURS;
-if(d<0) return "🔥 遅延";
-if(t.estimate>d) return "⚠ 危険";
-if(d<DAY_HOURS*2) return "⏳ 注意";
+if(d<0) return "🔥 <span style='color:#ef4444'>遅延</span>";
+if(t.estimate>d) return "⚠ <span style='color:#facc15'>危険</span>";
+if(d<DAY_HOURS*2) return "⏳ <span style='color:#f59e0b'>注意</span>";
 return "✅ 正常";
 }
 
-/* today */
+/* today強化 */
 function renderToday(){
-let h=DAY_HOURS,out=[];
-tasks.forEach(t=>{
+let h=DAY_HOURS,today=[],carry=[];
+
+tasks
+.filter(t=>t.progress<100)
+.sort((a,b)=>score(b)-score(a))
+.forEach(t=>{
 let r=t.estimate*(1-t.progress/100);
-if(r<=0||h<=0) return;
+
+if(h>0){
 let use=Math.min(h,r);
-out.push(`${t.name} (${use.toFixed(1)}h)`);
+today.push(`・${t.name} (${use.toFixed(1)}h)`);
 h-=use;
+
+if(r>use)carry.push(`・${t.name} 残${(r-use).toFixed(1)}h`);
+}else{
+carry.push(`・${t.name} (${r.toFixed(1)}h)`);
+}
 });
-$("today").innerHTML=out.join("<br>")||"なし";
+
+let text=today.join("<br>")||"なし";
+
+if(carry.length){
+text+="<hr>明日以降<br>"+carry.slice(0,3).join("<br>");
+}
+
+$("today").innerHTML=text;
 }
 
 /* 描画 */
 function render(){
+autoStatus();
 sortTasks();
 
 $("tbody").innerHTML="";
 $("done").innerHTML="";
-["todo","doing","waiting","doneK"].forEach(i=>$(i).innerHTML="");
+["todo","doing","waiting","doneK"].forEach(id=>$(id).innerHTML="");
 
 let doneNum=0;
 
 tasks.forEach(t=>{
-
-if(t.progress>=100) t.status="完了";
 
 if(keyword && !t.name.toLowerCase().includes(keyword) && !(t.memo||"").toLowerCase().includes(keyword)) return;
 
 let remain=t.estimate*(1-t.progress/100);
 
 let row=`
-<tr onclick="edit(${t.id})">
-<td>${t.name}</td>
-<td>${t.priority}</td>
+<tr>
+<td onclick="edit(${t.id})">${t.name}</td>
+<td><span class="badge ${t.priority}"></span></td>
 <td>${status(t)}</td>
 <td>${t.deadline||""}</td>
-<td>${t.progress}% (${remain.toFixed(1)}h)</td>
+<td>
+${t.progress}% (${remain.toFixed(1)}h)
+<button onclick="quickProgress(${t.id});event.stopPropagation()">＋</button>
+</td>
 <td>${t.memo||""}</td>
 <td>
 <button onclick="toggleWait(${t.id});event.stopPropagation()">⏸</button>
@@ -255,11 +359,15 @@ else{$("tbody").innerHTML+=row;}
 /* カンバン */
 let c=document.createElement("div");
 c.className="task";
-c.textContent=t.name;
+c.style.background=color(t);
+c.onclick=()=>edit(t.id);
+
+c.innerHTML=`<div class="small">${t.deadline||""}</div><b>${t.name}</b>`;
 c.draggable=true;
 
 c.ondragstart=e=>{
 e.dataTransfer.setData("text/plain",String(t.id));
+c.style.opacity=.5;
 };
 c.ondragend=()=>c.style.opacity=1;
 
@@ -270,13 +378,24 @@ t.status==="完了"?"doneK":
 t.progress>0?"doing":"todo";
 
 $(col).appendChild(c);
-
 });
 
 $("doneCount").innerText=doneNum;
 $("doneWrap").style.display=showDone?"block":"none";
 
+if(tasks.length===0){
+$("tbody").innerHTML="<tr><td colspan='7' style='text-align:center;color:#6b7280'>タスクなし</td></tr>";
+}
+
 renderToday();
+}
+
+/* 進捗＋ */
+function quickProgress(id){
+let t=tasks.find(x=>x.id==id);
+if(!t)return;
+t.progress=Math.min(100,t.progress+10);
+save();
 }
 
 /* 編集 */
@@ -304,7 +423,7 @@ t.estimate=+$("m_estimate").value;
 t.progress=+$("m_progress").value;
 t.memo=$("m_memo").value;
 
-if(t.progress>=100) t.status="完了";
+if(t.progress>=100)t.status="完了";
 
 closeModal();
 save();
@@ -318,48 +437,53 @@ let t=tasks.find(x=>x.id==id);
 t.status=t.status==="待機"?"進行中":"待機";
 save();
 }
+
 function del(id){
+if(!confirm("削除する？")) return;
 tasks=tasks.filter(t=>t.id!=id);
 save();
 }
+
 function toggleDone(){showDone=!showDone;render();}
 function allowDrop(e){e.preventDefault();}
 
+/* drop */
 function drop(e,s){
 e.preventDefault();
 
 let id=Number(e.dataTransfer.getData("text/plain"));
 let t=tasks.find(x=>x.id==id);
-if(!t) return;
+if(!t)return;
 
 t.status=s;
 
-if(s==="完了") t.progress=100;
-if(s==="進行中" && t.progress===0) t.progress=10;
+if(s==="完了")t.progress=100;
+if(s==="進行中"&&t.progress===0)t.progress=10;
 
 save();
 }
 
-/* 保存・復元 */
-function exportTasks(){
-let blob=new Blob([JSON.stringify(tasks,null,2)]);
-let a=document.createElement("a");
-a.href=URL.createObjectURL(blob);
-a.download="tasks.json";
-a.click();
+/* backup restore */
+function restoreBackup(){
+if(!confirm("バックアップ復元する？"))return;
+let data=localStorage.getItem("tasks_backup");
+if(data){
+tasks=JSON.parse(data);
+save();
 }
-function importTasks(e){
-if(!confirm("上書きします")) return;
-let r=new FileReader();
-r.onload=x=>{tasks=JSON.parse(x.target.result);save();};
-r.readAsText(e.target.files[0]);
 }
 
 /* 週報 */
 function copyReport(){
 let rows=[["タスク","優先","状態","期限","進捗"]];
 tasks.forEach(t=>{
-rows.push([t.name,t.priority,status(t),t.deadline||"",t.progress+"%"]);
+rows.push([
+t.name,
+t.priority,
+status(t).replace(/<[^>]+>/g,""),
+t.deadline||"",
+t.progress+"%"
+]);
 });
 navigator.clipboard.writeText(rows.map(r=>r.join("\t")).join("\n"));
 alert("コピーOK");
@@ -369,9 +493,12 @@ alert("コピーOK");
 $("btnList").onclick=()=>{$("list").style.display="block";$("board").style.display="none";};
 $("btnBoard").onclick=()=>{$("list").style.display="none";$("board").style.display="grid";};
 
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal();});
+
 $("btnList").click();
 render();
 </script>
 
+  
 </body>
 </html>
