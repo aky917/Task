@@ -7,30 +7,12 @@
 <style>
 body{background:#0f172a;color:#e5e7eb;font-family:sans-serif;margin:0}
 .wrap{max-width:1800px;margin:auto;padding:20px 40px}
-
-.card{
-background:#1e293b;
-border:1px solid #1f2937;
-border-radius:12px;
-padding:14px;
-margin-bottom:14px
-}
-
-button,input,select,textarea{
-background:#0f172a;border:1px solid #1f2937;color:white;padding:6px;border-radius:6px
-}
-
-/* テーブル */
+.card{background:#1e293b;border:1px solid #1f2937;border-radius:12px;padding:14px;margin-bottom:14px}
+button,input,select,textarea{background:#0f172a;border:1px solid #1f2937;color:white;padding:6px;border-radius:6px}
 table{width:100%;table-layout:fixed;border-collapse:collapse}
 th,td{padding:8px;border-top:1px solid #1f2937}
 th{text-align:left;color:#9ca3af}
-
-tbody tr:hover{
-background:#273449;
-cursor:pointer;
-}
-
-/* 列 */
+tbody tr:hover{background:#273449;cursor:pointer}
 th:nth-child(1){width:32%}
 th:nth-child(2),td:nth-child(2){width:5%;text-align:center}
 th:nth-child(3){width:10%}
@@ -38,39 +20,25 @@ th:nth-child(4){width:12%}
 th:nth-child(5){width:15%}
 th:nth-child(6){width:20%}
 th:nth-child(7){width:4%}
-
-/* テキスト */
 td{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 td:nth-child(6){white-space:normal}
 
-/* ✅ 優先（丸＋色分離） */
-.badge{
-display:inline-block;
-width:12px;
-height:12px;
-border-radius:50%;
-}
-.高{background:#ef4444;}  /* 赤 */
-.中{background:#3b82f6;}  /* 青 */
-.低{background:#22c55e;}  /* 緑 */
+.badge{display:inline-block;width:12px;height:12px;border-radius:50%;}
+.高{background:#ef4444;}
+.中{background:#3b82f6;}
+.低{background:#22c55e;}
 
-/* カンバン */
 .kanban{display:none;grid-template-columns:repeat(4,1fr);gap:16px}
 
 .task{
 padding:8px;margin:6px;border-radius:8px;
 cursor:pointer;font-size:12px;
-transition:.2s
+transition:.2s;
+box-shadow:0 2px 6px rgba(0,0,0,.2);
 }
-
-.task:hover{
-transform:scale(1.02);
-filter:brightness(1.15);
-}
-
+.task:hover{transform:scale(1.02);filter:brightness(1.15);}
 .task b{font-size:13px}
 .small{font-size:10px;color:#9ca3af}
-
 </style>
 </head>
 
@@ -91,18 +59,14 @@ filter:brightness(1.15);
 <div class="card">
 <input id="name">
 <select id="priority">
-<option>高</option>
-<option>中</option>
-<option>低</option>
+<option>高</option><option>中</option><option>低</option>
 </select>
 <input id="deadline" type="date">
-<input id="estimate" type="number">
+<input id="estimate" type="number" step="0.5" placeholder="時間(h)">
 <input id="memo">
-
 <button id="addBtn">追加</button>
 <button onclick="copyReport()">週報</button>
 <button onclick="exportTasks()">保存</button>
-
 <input type="file" id="file" style="display:none" onchange="importTasks(event)">
 <button onclick="$('file').click()">復元</button>
 </div>
@@ -112,7 +76,6 @@ filter:brightness(1.15);
 <button id="btnBoard">カンバン</button>
 </div>
 
-<!-- 一覧 -->
 <div id="list" class="card">
 <table>
 <thead>
@@ -130,7 +93,6 @@ filter:brightness(1.15);
 </div>
 </div>
 
-<!-- カンバン -->
 <div id="board" class="kanban">
 <div class="card" ondrop="drop(event,'未着手')" ondragover="allowDrop(event)">未着手<div id="todo"></div></div>
 <div class="card" ondrop="drop(event,'進行中')" ondragover="allowDrop(event)">進行中<div id="doing"></div></div>
@@ -138,7 +100,6 @@ filter:brightness(1.15);
 <div class="card" ondrop="drop(event,'完了')" ondragover="allowDrop(event)">完了<div id="doneK"></div></div>
 </div>
 
-<!-- モーダル -->
 <div id="modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7)">
 <div style="background:#111827;padding:20px;margin:100px auto;width:320px">
 <input id="m_name"><br><br>
@@ -155,8 +116,9 @@ filter:brightness(1.15);
 </div>
 
 <script>
-
 const $=id=>document.getElementById(id);
+
+const DAY_HOURS = 8;
 
 let tasks=JSON.parse(localStorage.getItem("tasks")||"[]");
 let keyword="";
@@ -169,7 +131,7 @@ keyword=e.target.value.toLowerCase();
 render();
 };
 
-/* ✅ 追加（修正済） */
+/* 追加 */
 $("addBtn").onclick=()=>{
 if(!$("name").value.trim()) return;
 
@@ -194,11 +156,11 @@ function status(t){
 if(t.status==="待機") return "<span style='color:#60a5fa'>待機</span>";
 if(!t.deadline) return "バックログ";
 
-let d=(new Date(t.deadline)-new Date())/86400000;
+let d=(new Date(t.deadline)-new Date())/86400000 * DAY_HOURS;
 
 if(d<0) return "<span style='color:#ef4444'>遅延</span>";
 if(t.estimate>d) return "<span style='color:#facc15'>危険</span>";
-if(d<2) return "<span style='color:#f59e0b'>注意</span>";
+if(d<DAY_HOURS*2) return "<span style='color:#f59e0b'>注意</span>";
 
 return "正常";
 }
@@ -207,11 +169,11 @@ return "正常";
 function color(t){
 if(t.status==="待機") return "#1e40af";
 
-let d=(new Date(t.deadline)-new Date())/86400000;
+let d=(new Date(t.deadline)-new Date())/86400000 * DAY_HOURS;
 
 if(d<0) return "#dc2626";
 if(t.estimate>d) return "#eab308";
-if(d<2) return "#f59e0b";
+if(d<DAY_HOURS*2) return "#f59e0b";
 
 return "#1f2937";
 }
@@ -219,37 +181,45 @@ return "#1f2937";
 /* 並び替え */
 function sortTasks(){
 tasks.sort((a,b)=>{
-if(!a.deadline && b.deadline) return 1;
-if(a.deadline && !b.deadline) return -1;
-
-let da=(new Date(a.deadline)-new Date())/86400000;
-let db=(new Date(b.deadline)-new Date())/86400000;
-
+let da=(new Date(a.deadline)-new Date())/86400000 * DAY_HOURS;
+let db=(new Date(b.deadline)-new Date())/86400000 * DAY_HOURS;
 return (da-a.estimate)-(db-b.estimate);
 });
 }
 
-/* 今日 */
+/* 今日（繰り越し対応） */
 function renderToday(){
 let list=tasks.filter(t=>t.progress<100 && t.deadline);
 
 list.sort((a,b)=>{
-let da=(new Date(a.deadline)-new Date())/86400000;
-let db=(new Date(b.deadline)-new Date())/86400000;
+let da=(new Date(a.deadline)-new Date())/86400000 * DAY_HOURS;
+let db=(new Date(b.deadline)-new Date())/86400000 * DAY_HOURS;
 return (da-a.estimate)-(db-b.estimate);
 });
 
-let h=6,res=[];
+let h=DAY_HOURS;
+let today=[],carry=[];
 
 for(let t of list){
-if(h<=0) break;
-let use=Math.min(h,(t.estimate*(1-t.progress/100)*6));
-if(use<=0) continue;
-res.push(`・${t.name} (${Math.round(use)}h)`);
+let remain=t.estimate*(1-t.progress/100);
+if(remain<=0) continue;
+
+if(h>0){
+let use=Math.min(h,remain);
+today.push(`・${t.name} (${use.toFixed(1)}h)`);
 h-=use;
+
+if(remain>use){
+carry.push(`・${t.name} 残り ${(remain-use).toFixed(1)}h`);
+}
+}else{
+carry.push(`・${t.name} (${remain.toFixed(1)}h)`);
+}
 }
 
-$("today").innerHTML=res.join("<br>")||"なし";
+$("today").innerHTML=
+(today.join("<br>")||"なし")+
+(carry.length?"<hr>明日以降<br>"+carry.join("<br>"):"");
 }
 
 /* 描画 */
@@ -269,14 +239,15 @@ if(keyword &&
 !t.name.toLowerCase().includes(keyword) &&
 !(t.memo||"").toLowerCase().includes(keyword)) return;
 
-/* 一覧 */
+let remain=t.estimate*(1-t.progress/100);
+
 let row=`
 <tr>
 <td onclick="edit(${t.id})">${t.name}</td>
-<td><span class="badge ${t.priority}" title="${t.priority}"></span></td>
+<td><span class="badge ${t.priority}"></span></td>
 <td>${status(t)}</td>
 <td>${t.deadline||""}</td>
-<td>${t.progress}%</td>
+<td>${t.progress}% (${remain.toFixed(1)}h)</td>
 <td>${t.memo||""}</td>
 <td>
 <button onclick="toggleWait(${t.id});event.stopPropagation()">⏸</button>
@@ -287,14 +258,12 @@ let row=`
 if(t.progress==100){$("done").innerHTML+=row;doneNum++;}
 else{$("tbody").innerHTML+=row;}
 
-/* カンバン */
 let c=document.createElement("div");
 c.className="task";
 c.style.background=color(t);
 c.onclick=()=>edit(t.id);
 
-c.innerHTML=`
-<div class="small">
+c.innerHTML=`<div class="small">
 <span class="badge ${t.priority}"></span> ${t.deadline||""}
 </div>
 <b>${t.name}</b>`;
@@ -303,6 +272,7 @@ c.draggable=true;
 c.ondragstart=e=>e.dataTransfer.setData("id",t.id);
 
 let col=t.status==="待機"?"waiting":
+t.status==="進行中"?"doing":
 t.progress==100?"doneK":
 t.progress>0?"doing":"todo";
 
@@ -341,11 +311,17 @@ t.estimate=+$("m_estimate").value;
 t.progress=+$("m_progress").value;
 t.memo=$("m_memo").value;
 
+if(t.progress>=100){t.status="完了";}
+
 closeModal();
 save();
 }
 
 function closeModal(){ $("modal").style.display="none"; }
+
+document.addEventListener("keydown",e=>{
+if(e.key==="Escape") closeModal();
+});
 
 function toggleWait(id){
 let t=tasks.find(x=>x.id==id);
@@ -373,8 +349,12 @@ function allowDrop(e){e.preventDefault();}
 function drop(e,s){
 let id=+e.dataTransfer.getData("id");
 let t=tasks.find(x=>x.id==id);
+
 t.status=s;
+
 if(s==="完了") t.progress=100;
+if(s==="進行中" && t.progress===0) t.progress=10;
+
 save();
 }
 
