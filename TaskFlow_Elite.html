@@ -167,8 +167,20 @@ transition:.3s;
 </div>
 
 
+  
 
 <script>
+
+function esc(str){
+  return String(str).replace(/[&<>"']/g, s => ({
+    "&":"&amp;",
+    "<":"&lt;",
+    ">":"&gt;",
+    '"':"&quot;",
+    "'":"&#39;"
+  }[s]));
+}
+
 const $=id=>document.getElementById(id);
 const DAY_HOURS=8;
 
