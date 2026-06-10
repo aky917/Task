@@ -277,10 +277,23 @@ save();
 
 /* スコア */
 function score(t){
-const p={高:3,中:2,低:1};
-let d=(safeDate(t.deadline)-new Date())/86400000;
-return (p[t.priority]*10)-d-t.estimate;
+  const p = {高:3, 中:2, 低:1};
+
+  let days = (safeDate(t.deadline)-new Date())/86400000;
+  let remain = t.estimate*(1-t.progress/100);
+
+  let urgency = days <= 0 ? 10 :
+                days <= 1 ? 6 :
+                days <= 3 ? 3 : 0;
+
+  let danger = (remain > days*DAY_HOURS) ? 8 : 0;
+
+  return (p[t.priority]*5)
+       + urgency
+       + danger
+       - remain*0.3;
 }
+``
 
 /* 並び */
 function sortTasks(){
