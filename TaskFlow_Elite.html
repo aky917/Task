@@ -2,624 +2,829 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>TaskFlow FINAL</title>
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TaskFlow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-body{background:#0f172a;color:#e5e7eb;font-family:sans-serif;margin:0}
-.wrap{max-width:1800px;margin:auto;padding:20px 40px}
-.card{background:#1e293b;border:1px solid #1f2937;border-radius:12px;padding:14px;margin-bottom:14px}
-
-button,input,select,textarea{
-background:#0f172a;border:1px solid #1f2937;color:white;padding:6px;border-radius:6px;
-transition:.15s;cursor:pointer;
+:root {
+  --bg:        #08101E;
+  --surface:   #0F1C2E;
+  --surface2:  #162338;
+  --border:    #1E3050;
+  --border2:   #243A5A;
+  --accent:    #6EE7B7;
+  --accent2:   #34D399;
+  --accent-dim:#1A4035;
+  --text:      #E2EAF4;
+  --muted:     #6B84A3;
+  --muted2:    #3D5670;
+  --red:       #F87171;
+  --yellow:    #FBBF24;
+  --orange:    #FB923C;
+  --blue:      #60A5FA;
+  --mono:      'JetBrains Mono', monospace;
+  --sans:      'Inter', sans-serif;
 }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 13px; min-height: 100vh; }
 
-/* ボタン */
-button:hover{background:#1f2937;transform:translateY(-1px);}
-button:active{transform:translateY(1px) scale(0.97);filter:brightness(.85);}
-button:focus{outline:1px solid #3b82f6;}
+.shell { display: grid; grid-template-columns: 260px 1fr; grid-template-rows: 52px 1fr; min-height: 100vh; }
 
-#addBtn{background:#2563eb;}
-#addBtn:hover{background:#3b82f6;}
-button[onclick*="del"]{background:#7f1d1d;}
-button[onclick*="del"]:hover{background:#b91c1c;}
+/* Topbar */
+.topbar { grid-column: 1 / -1; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 24px; gap: 20px; position: sticky; top: 0; z-index: 100; }
+.logo { font-size: 15px; font-weight: 600; letter-spacing: -0.02em; color: var(--accent); display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
+.logo::before { content: ''; width: 7px; height: 7px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 8px var(--accent); }
+.search-wrap { flex: 1; max-width: 340px; position: relative; }
+.search-wrap svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+#search { width: 100%; background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 6px 10px 6px 32px; border-radius: 7px; font-family: var(--sans); font-size: 12px; outline: none; transition: border-color .15s; }
+#search:focus { border-color: var(--accent); }
+#search::placeholder { color: var(--muted); }
+.topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.btn { background: var(--surface2); border: 1px solid var(--border); color: var(--muted); padding: 5px 12px; border-radius: 6px; font-family: var(--sans); font-size: 12px; cursor: pointer; transition: all .15s; white-space: nowrap; }
+.btn:hover { border-color: var(--border2); color: var(--text); background: var(--border); }
+.btn:active { transform: scale(0.97); }
+.btn-accent { background: var(--accent-dim); border-color: var(--accent2); color: var(--accent); font-weight: 500; }
+.btn-accent:hover { background: #1f5045; color: var(--accent); }
 
-/* フラッシュ */
-.flash{animation:flash .6s;}
-@keyframes flash{
-50%{box-shadow:0 0 20px rgba(59,130,246,.8)}
-}
+/* Sidebar */
+.sidebar { background: var(--surface); border-right: 1px solid var(--border); padding: 20px 0; overflow-y: auto; }
+.sidebar-section { padding: 0 16px; margin-bottom: 24px; }
+.sidebar-label { font-size: 10px; font-weight: 600; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 10px; padding: 0 4px; }
+.today-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+.today-date { font-size: 10px; color: var(--muted); margin-bottom: 8px; font-family: var(--mono); }
+.today-items { display: flex; flex-direction: column; gap: 5px; }
+.today-item { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--text); padding: 4px 6px; border-radius: 5px; background: var(--surface); }
+.today-item .h { font-family: var(--mono); font-size: 10px; color: var(--accent); flex-shrink: 0; margin-left: 8px; }
+.today-carry { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 10px; color: var(--muted); }
+.today-carry-item { display: flex; justify-content: space-between; padding: 2px 0; }
+.view-tabs { display: flex; gap: 4px; }
+.tab { flex: 1; padding: 6px; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-family: var(--sans); font-size: 11px; cursor: pointer; transition: all .15s; text-align: center; }
+.tab.active, .tab:hover { background: var(--surface2); color: var(--text); border-color: var(--border2); }
 
-/* 入力バー */
-.formbar{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
-#name{width:240px}
-#memo{width:200px}
-#estimate{width:70px}
-label{font-size:11px;color:#9ca3af}
-.subbtns{display:flex;gap:6px}
+/* Main */
+.main { overflow-y: auto; display: flex; flex-direction: column; }
 
-/* date */
-input[type="date"]{color-scheme:dark}
-input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(1);cursor:pointer}
+/* Add form */
+.addform { border-bottom: 1px solid var(--border); padding: 14px 24px; background: var(--surface); display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field label { font-size: 10px; color: var(--muted); font-weight: 500; letter-spacing: .04em; text-transform: uppercase; }
+.field input, .field select { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 7px; font-family: var(--sans); font-size: 12px; outline: none; transition: border-color .15s; cursor: pointer; }
+.field input:focus, .field select:focus { border-color: var(--accent); }
+.field input::placeholder { color: var(--muted); }
+#name { width: 220px; }
+#estimate { width: 72px; }
+#memo { width: 180px; }
+input[type="date"] { color-scheme: dark; }
+input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6) sepia(1) saturate(2) hue-rotate(120deg); cursor: pointer; }
+#addBtn { background: var(--accent-dim); border: 1px solid var(--accent2); color: var(--accent); padding: 6px 18px; border-radius: 7px; font-family: var(--sans); font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s; }
+#addBtn:hover { background: #1f5045; }
+#addBtn:active { transform: scale(0.97); }
 
-/* テーブル */
-table{width:100%;table-layout:fixed;border-collapse:collapse}
-th,td{padding:8px;border-top:1px solid #1f2937}
-th{color:#9ca3af}
-tbody tr:hover{background:#273449}
+/* Table */
+.table-wrap { flex: 1; padding: 20px 24px; }
+table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+thead th { font-size: 10px; font-weight: 600; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; padding: 0 10px 10px; border-bottom: 1px solid var(--border); text-align: left; }
+tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; cursor: pointer; }
+tbody tr:hover { background: var(--surface2); }
+td { padding: 10px; vertical-align: middle; font-size: 12px; }
+th:nth-child(1), td:nth-child(1) { width: 25%; }
+th:nth-child(2), td:nth-child(2) { width: 6%; text-align: center; }
+th:nth-child(3), td:nth-child(3) { width: 12%; }
+th:nth-child(4), td:nth-child(4) { width: 11%; font-size: 11px; }
+th:nth-child(5), td:nth-child(5) { width: 20%; }
+th:nth-child(6), td:nth-child(6) { width: 19%; color: var(--muted); font-size: 11px; }
+th:nth-child(7), td:nth-child(7) { width: 7%; text-align: right; }
 
+.task-name { font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.subtask-hint { font-size: 10px; color: var(--muted); margin-top: 2px; font-family: var(--mono); }
 
-th { text-align:left; font-weight:600; }
-td { vertical-align:middle; }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.dot.高 { background: var(--red); box-shadow: 0 0 5px var(--red); }
+.dot.中 { background: var(--blue); box-shadow: 0 0 5px var(--blue); }
+.dot.低 { background: #4ADE80; box-shadow: 0 0 5px #4ADE80; }
 
-th:nth-child(1), td:nth-child(1){width:24%; text-align:left;}
-th:nth-child(2), td:nth-child(2){width:6%;  text-align:center;}
-th:nth-child(3), td:nth-child(3){width:12%; text-align:center;}
-th:nth-child(4), td:nth-child(4){width:12%; text-align:center; font-size:12px;}
-th:nth-child(5), td:nth-child(5){width:14%; text-align:right; font-family:monospace;}
-th:nth-child(6), td:nth-child(6){width:22%; text-align:left;}
-th:nth-child(7), td:nth-child(7){width:10%; text-align:right;}
+.status-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 2px 8px; border-radius: 100px; font-weight: 500; white-space: nowrap; }
+.s-ok      { background: #0d2e1e; color: #4ADE80; }
+.s-danger  { background: #2d1515; color: var(--red); }
+.s-warn    { background: #2d2310; color: var(--yellow); }
+.s-caution { background: #2a1e0c; color: var(--orange); }
+.s-wait    { background: #1a2a40; color: var(--blue); }
+.s-backlog { background: #1a1f2a; color: var(--muted); }
 
+/* deadline relative */
+.dl-rel { font-size: 11px; }
+.dl-today   { color: var(--orange); font-weight: 600; }
+.dl-overdue { color: var(--red); }
+.dl-soon    { color: var(--yellow); }
+.dl-normal  { color: var(--muted); }
+.dl-none    { color: var(--muted2); }
 
-/* 優先 */
-.badge{width:12px;height:12px;border-radius:50%;display:inline-block}
-.高{background:#ef4444}
-.中{background:#3b82f6}
-.低{background:#22c55e}
+.prog-wrap { display: flex; align-items: center; gap: 8px; }
+.prog-bar { flex: 1; height: 4px; background: var(--surface2); border-radius: 100px; overflow: hidden; }
+.prog-fill { height: 100%; border-radius: 100px; background: var(--accent); transition: width .3s; }
+.prog-fill.warn   { background: var(--yellow); }
+.prog-fill.danger { background: var(--red); }
+.prog-text { font-family: var(--mono); font-size: 10px; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+.quick-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--muted); width: 22px; height: 22px; border-radius: 5px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; transition: all .15s; line-height: 1; flex-shrink: 0; }
+.quick-btn:hover { border-color: var(--accent2); color: var(--accent); }
+.row-actions { display: flex; gap: 4px; justify-content: flex-end; opacity: 0; transition: opacity .15s; }
+tr:hover .row-actions { opacity: 1; }
+.icon-btn { background: transparent; border: 1px solid transparent; color: var(--muted); width: 24px; height: 24px; border-radius: 5px; cursor: pointer; font-size: 12px; display: inline-flex; align-items: center; justify-content: center; transition: all .15s; }
+.icon-btn:hover { background: var(--surface2); border-color: var(--border); color: var(--text); }
+.icon-btn.del:hover { color: var(--red); border-color: var(--red); background: #2d1515; }
 
-/* カンバン */
-.kanban{display:none;grid-template-columns:repeat(4,1fr);gap:16px}
-.task{
-padding:8px;margin:6px;border-radius:8px;
-cursor:pointer;font-size:12px;transition:.2s;
-box-shadow:0 2px 6px rgba(0,0,0,.2);
-}
-.task:hover{transform:scale(1.02)}
-.small{font-size:10px;color:#9ca3af}
+.done-header { display: flex; align-items: center; gap: 8px; padding: 14px 10px 8px; cursor: pointer; color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; user-select: none; }
+.done-header:hover { color: var(--text); }
+.done-count { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 1px 7px; font-size: 10px; font-family: var(--mono); }
+.done-chevron { transition: transform .2s; font-style: normal; }
+.done-chevron.open { transform: rotate(90deg); }
+#done-table td { opacity: 0.5; }
+#done-table .task-name { text-decoration: line-through; }
 
-/* トースト */
-#toast{
-position:fixed;bottom:20px;right:20px;
-background:#16a34a;color:white;
-padding:10px 16px;border-radius:8px;
-opacity:0;transform:translateY(10px);
-transition:.3s;
-}
+/* Kanban */
+.kanban { display: none; grid-template-columns: repeat(4, 1fr); gap: 16px; padding: 20px 24px; }
+.k-col { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px; min-height: 400px; }
+.k-col-header { font-size: 11px; font-weight: 600; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+.k-count { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 1px 6px; font-size: 10px; font-family: var(--mono); }
+.k-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px; margin-bottom: 8px; cursor: pointer; font-size: 11px; transition: all .15s; }
+.k-card:hover { border-color: var(--border2); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.3); }
+.k-card-title { font-weight: 500; color: var(--text); margin-bottom: 4px; }
+.k-card-meta { color: var(--muted); font-size: 10px; font-family: var(--mono); display: flex; justify-content: space-between; }
+
+/* Modal */
+#modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.65); backdrop-filter: blur(4px); z-index: 200; align-items: flex-start; justify-content: center; overflow-y: auto; padding: 40px 20px; }
+#modal.open { display: flex; }
+.modal-box { background: var(--surface); border: 1px solid var(--border2); border-radius: 14px; padding: 24px; width: 420px; box-shadow: 0 24px 60px rgba(0,0,0,.6); flex-shrink: 0; }
+.modal-title { font-size: 14px; font-weight: 600; margin-bottom: 18px; color: var(--text); }
+.modal-field { margin-bottom: 14px; }
+.modal-field label { display: block; font-size: 10px; color: var(--muted); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 5px; }
+.modal-field input, .modal-field select, .modal-field textarea { width: 100%; background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 7px 10px; border-radius: 7px; font-family: var(--sans); font-size: 12px; outline: none; transition: border-color .15s; }
+.modal-field input:focus, .modal-field select:focus, .modal-field textarea:focus { border-color: var(--accent); }
+.modal-field textarea { resize: vertical; min-height: 60px; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
+
+/* Subtasks */
+.subtask-section { margin-top: 4px; }
+.subtask-section-label { font-size: 10px; color: var(--muted); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 8px; }
+.subtask-list { display: flex; flex-direction: column; gap: 5px; margin-bottom: 8px; }
+.subtask-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; }
+.subtask-row input[type="checkbox"] { accent-color: var(--accent); width: 14px; height: 14px; flex-shrink: 0; cursor: pointer; }
+.subtask-row .st-name { flex: 1; font-size: 12px; color: var(--text); background: transparent; border: none; outline: none; font-family: var(--sans); }
+.subtask-row .st-name.done-st { text-decoration: line-through; color: var(--muted); }
+.subtask-row .st-del { background: transparent; border: none; color: var(--muted2); cursor: pointer; font-size: 14px; padding: 0 2px; transition: color .15s; flex-shrink: 0; }
+.subtask-row .st-del:hover { color: var(--red); }
+.subtask-add-row { display: flex; gap: 6px; }
+.subtask-add-row input { flex: 1; background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 6px; font-family: var(--sans); font-size: 12px; outline: none; }
+.subtask-add-row input:focus { border-color: var(--accent); }
+.subtask-add-row button { background: var(--accent-dim); border: 1px solid var(--accent2); color: var(--accent); padding: 5px 12px; border-radius: 6px; font-family: var(--sans); font-size: 12px; cursor: pointer; white-space: nowrap; }
+.subtask-add-row button:hover { background: #1f5045; }
+.subtask-progress { font-size: 10px; color: var(--muted); margin-top: 4px; font-family: var(--mono); }
+
+/* Toast */
+#toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface); border: 1px solid var(--accent2); color: var(--accent); padding: 10px 16px; border-radius: 8px; font-size: 12px; font-weight: 500; opacity: 0; transform: translateY(8px); transition: all .25s; z-index: 300; pointer-events: none; }
+#toast.show { opacity: 1; transform: translateY(0); }
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 10px; }
 </style>
 </head>
-
 <body>
-<div class="wrap">
+<div class="shell">
 
-<h2>TaskFlow</h2>
+  <header class="topbar">
+    <div class="logo">TaskFlow</div>
+    <div class="search-wrap">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input id="search" placeholder="タスクを検索…">
+    </div>
+    <div class="topbar-actions">
+      <button class="btn" onclick="copyReport()">週報コピー</button>
+      <button class="btn" onclick="exportTasks()">エクスポート</button>
+      <input type="file" id="file" style="display:none" onchange="importTasks(event)">
+      <button class="btn" onclick="document.getElementById('file').click()">インポート</button>
+    </div>
+  </header>
 
-<div class="card"><b>今日の流れ</b><div id="today"></div></div>
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">今日の予定</div>
+      <div class="today-card">
+        <div class="today-date" id="today-date"></div>
+        <div class="today-items" id="today-items"></div>
+        <div id="today-carry"></div>
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">表示</div>
+      <div class="view-tabs">
+        <button class="tab active" id="btnList" onclick="showList()">一覧</button>
+        <button class="tab"        id="btnBoard" onclick="showBoard()">カンバン</button>
+      </div>
+    </div>
+  </aside>
 
-<div class="card"><input id="search" placeholder="検索" style="width:100%"></div>
+  <main class="main">
+    <div class="addform">
+      <div class="field"><label>タスク名</label><input id="name" placeholder="例：資料作成"></div>
+      <div class="field"><label>優先度</label><select id="priority"><option>高</option><option selected>中</option><option>低</option></select></div>
+      <div class="field"><label>期限</label><input id="deadline" type="date"></div>
+      <div class="field"><label>工数 (h)</label><input id="estimate" type="number" step="0.5" placeholder="1"></div>
+      <div class="field"><label>メモ</label><input id="memo" placeholder="任意"></div>
+      <button id="addBtn">＋ 追加</button>
+    </div>
 
-<div class="card formbar">
-<div><label>タスク</label><br><input id="name" placeholder="例：資料作成"></div>
-<div><label>優先</label><br>
-<select id="priority"><option>高</option><option>中</option><option>低</option></select></div>
-<div><label>期限</label><br><input id="deadline" type="date"></div>
-<div><label>工数(h)</label><br><input id="estimate" type="number" step="0.5"></div>
-<div><label>メモ</label><br><input id="memo"></div>
-<div><button id="addBtn">追加</button></div>
+    <div id="list-view" class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>タスク</th><th>優先</th><th>状態</th><th>期限</th><th>進捗</th><th>メモ</th><th></th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      <div class="done-header" onclick="toggleDone()">
+        <span class="done-chevron" id="done-chevron">›</span>
+        完了済み
+        <span class="done-count" id="doneCount">0</span>
+      </div>
+      <div id="done-wrap" style="display:none">
+        <table><tbody id="done-table"></tbody></table>
+      </div>
+    </div>
 
-<div class="subbtns">
-<button onclick="copyReport()">週報</button>
-<button onclick="exportTasks()">保存</button>
-<input type="file" id="file" style="display:none" onchange="importTasks(event)">
-<button onclick="$('file').click()">復元</button>
+    <div id="board-view" class="kanban">
+      <div class="k-col" ondrop="drop(event,'未着手')" ondragover="allowDrop(event)">
+        <div class="k-col-header">未着手 <span class="k-count" id="cnt-todo">0</span></div>
+        <div id="k-todo"></div>
+      </div>
+      <div class="k-col" ondrop="drop(event,'進行中')" ondragover="allowDrop(event)">
+        <div class="k-col-header">進行中 <span class="k-count" id="cnt-doing">0</span></div>
+        <div id="k-doing"></div>
+      </div>
+      <div class="k-col" ondrop="drop(event,'待機')" ondragover="allowDrop(event)">
+        <div class="k-col-header">待機 <span class="k-count" id="cnt-wait">0</span></div>
+        <div id="k-waiting"></div>
+      </div>
+      <div class="k-col" ondrop="drop(event,'完了')" ondragover="allowDrop(event)">
+        <div class="k-col-header">完了 <span class="k-count" id="cnt-done">0</span></div>
+        <div id="k-doneK"></div>
+      </div>
+    </div>
+  </main>
 </div>
-</div>
 
-<div class="card">
-<button id="btnList">一覧</button>
-<button id="btnBoard">カンバン</button>
-</div>
+<!-- Modal -->
+<div id="modal">
+  <div class="modal-box">
+    <div class="modal-title">タスクを編集</div>
+    <div class="modal-field"><label>タスク名</label><input id="m_name"></div>
+    <div class="modal-field"><label>優先度</label><select id="m_priority"><option>高</option><option>中</option><option>低</option></select></div>
+    <div class="modal-field"><label>期限</label><input id="m_deadline" type="date"></div>
+    <div class="modal-field"><label>工数 (h)</label><input id="m_estimate" type="number" step="0.5"></div>
+    <div class="modal-field"><label>進捗 (%)</label><input id="m_progress" type="number" min="0" max="100"></div>
+    <div class="modal-field"><label>メモ</label><textarea id="m_memo"></textarea></div>
 
-<div id="list" class="card">
-<table>
-<thead><tr>
-<th>タスク</th><th>優先</th><th>状態</th>
-<th>期限</th><th>進捗</th><th>メモ</th><th></th>
-</tr></thead>
-<tbody id="tbody"></tbody>
-</table>
+    <div class="subtask-section">
+      <div class="subtask-section-label">サブタスク</div>
+      <div class="subtask-list" id="subtask-list"></div>
+      <div class="subtask-progress" id="subtask-progress"></div>
+      <div class="subtask-add-row" style="margin-top:8px">
+        <input id="subtask-input" placeholder="新しいサブタスクを入力…">
+        <button onclick="addSubtask()">追加</button>
+      </div>
+    </div>
 
-<h3 onclick="toggleDone()">完了 (<span id="doneCount"></span>)</h3>
-<div id="doneWrap" style="display:none">
-<table><tbody id="done"></tbody></table>
-</div>
-</div>
-
-<div id="board" class="kanban">
-<div class="card" ondrop="drop(event,'未着手')" ondragover="allowDrop(event)">未着手<div id="todo"></div></div>
-<div class="card" ondrop="drop(event,'進行中')" ondragover="allowDrop(event)">進行中<div id="doing"></div></div>
-<div class="card" ondrop="drop(event,'待機')" ondragover="allowDrop(event)">待機<div id="waiting"></div></div>
-<div class="card" ondrop="drop(event,'完了')" ondragover="allowDrop(event)">完了<div id="doneK"></div></div>
-</div>
-
-<!-- モーダル -->
-<div id="modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7)">
-<div style="background:#111827;padding:20px;margin:100px auto;width:340px;border-radius:12px">
-
-<label>タスク</label><input id="m_name" style="width:100%"><br><br>
-<label>優先度</label>
-<select id="m_priority" style="width:100%">
-<option>高</option><option>中</option><option>低</option>
-</select><br><br>
-<label>期限</label><input id="m_deadline" type="date" style="width:100%"><br><br>
-<label>工数</label><input id="m_estimate" style="width:100%"><br><br>
-<label>進捗</label><input id="m_progress" type="number" min="0" max="100" style="width:100%"><br><br>
-<label>メモ</label><textarea id="m_memo" style="width:100%"></textarea><br><br>
-<div style="display:flex;gap:10px;justify-content:flex-end">
-<button onclick="saveModal()">保存</button>
-<button onclick="closeModal()">閉じる</button>
-</div>
-
-</div>
+    <div class="modal-actions">
+      <button class="btn btn-accent" onclick="saveModal()">保存</button>
+      <button class="btn" onclick="closeModal()">閉じる</button>
+    </div>
+  </div>
 </div>
 
 <div id="toast">保存しました</div>
 
-</div>
-
-
-  
-
 <script>
-
-function esc(str){
-  return String(str).replace(/[&<>"']/g, s => ({
-    "&":"&amp;",
-    "<":"&lt;",
-    ">":"&gt;",
-    '"':"&quot;",
-    "'":"&#39;"
-  }[s]));
+// ── XSS-safe escape ──
+function esc(str) {
+  return String(str ?? "").replace(/[&<>"']/g, s => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[s]));
 }
 
-const $=id=>document.getElementById(id);
-const DAY_HOURS=8;
+// ── DOM helper ──
+const $ = id => document.getElementById(id);
+const DAY_HOURS = 8;
 
 let tasks;
-try{
-  tasks=JSON.parse(localStorage.getItem("tasks")||"[]");
-}catch{
-  tasks=[];
-}
+try { tasks = JSON.parse(localStorage.getItem("tasks") || "[]"); }
+catch { tasks = []; }
 
-let keyword="",showDone=false,currentId=null;
+// migrate: ensure subtasks array exists
+tasks.forEach(t => { if (!t.subtasks) t.subtasks = []; });
 
-/* 安全日付 */
-function safeDate(d){
-  return d?new Date(d):new Date("2999-12-31");
-}
+let keyword = "", showDone = false, currentId = null;
 
-/* 保存 */
-function save(){
-  localStorage.setItem("tasks",JSON.stringify(tasks));
+function safeDate(d) { return d ? new Date(d) : new Date("2999-12-31"); }
+
+function save() {
+  localStorage.setItem("tasks", JSON.stringify(tasks));
   render();
-  showToast();
+  showToast("保存しました");
 }
 
-/* バックアップ */
-setInterval(()=>{
-  localStorage.setItem("tasks_backup",JSON.stringify(tasks));
-},10000);
+setInterval(() => localStorage.setItem("tasks_backup", JSON.stringify(tasks)), 10000);
 
-/* Toast */
-function showToast(msg="保存しました"){
-let t=$("toast");
-t.innerText=msg;
-t.style.opacity=1;
-t.style.transform="translateY(0)";
-setTimeout(()=>{
-t.style.opacity=0;
-t.style.transform="translateY(10px)";
-},1200);
+function showToast(msg = "保存しました") {
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 1800);
 }
 
-/* Enter */
-document.addEventListener("keydown",e=>{
-if(e.key==="Enter" && document.activeElement.tagName!=="TEXTAREA"){
-$("addBtn").click();
-}
+// ── Keyboard ──
+document.addEventListener("keydown", e => {
+  if (e.key === "Enter" && document.activeElement.tagName !== "TEXTAREA" && !$("modal").classList.contains("open"))
+    $("addBtn").click();
+  if (e.ctrlKey && e.key === "s") { e.preventDefault(); save(); }
+  if (e.key === "Escape") closeModal();
 });
+$("subtask-input").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); addSubtask(); } });
 
-/* Ctrl+S */
-document.addEventListener("keydown",e=>{
-if(e.ctrlKey && e.key==="s"){
-e.preventDefault();
-save();
+$("search").oninput = e => { keyword = e.target.value.toLowerCase(); render(); };
+
+// ── Status auto ──
+function autoStatus() {
+  tasks.forEach(t => {
+    if (t.progress >= 100) t.status = "完了";
+    else if (t.status !== "待機") t.status = t.progress > 0 ? "進行中" : "未着手";
+  });
 }
-});
 
-/* 検索 */
-$("search").oninput=e=>{
-keyword=e.target.value.toLowerCase();
-render();
+// ── Add task ──
+$("addBtn").onclick = () => {
+  const n = $("name").value.trim();
+  if (!n) return;
+  tasks.push({
+    id: Date.now(),
+    name: n,
+    priority: $("priority").value,
+    deadline: $("deadline").value,
+    estimate: +$("estimate").value || 1,
+    progress: 0,
+    memo: $("memo").value,
+    status: "未着手",
+    subtasks: []
+  });
+  ["name","deadline","estimate","memo"].forEach(i => $(i).value = "");
+  save();
 };
 
-/* 自動ステータス */
-function autoStatus(){
-tasks.forEach(t=>{
-if(t.progress>=100){
-t.status="完了";
-}else if(t.status!=="待機"){
-if(t.progress>0)t.status="進行中";
-else t.status="未着手";
-}
-});
-}
-
-/* 追加 */
-$("addBtn").onclick=()=>{
-if(!$("name").value.trim()) return;
-
-tasks.push({
-id:Date.now(),
-name:$("name").value,
-priority:$("priority").value,
-deadline:$("deadline").value,
-estimate:+$("estimate").value||1,
-progress:0,
-memo:$("memo").value,
-status:"未着手"
-});
-
-["name","deadline","estimate","memo"].forEach(i=>$(i).value="");
-
-save();
-};
-
-  
-/* スコア */
-function score(t){
+// ── Relative deadline display ──
+function relDeadline(deadline) {
+  if (!deadline) return { text: "—", cls: "dl-none" };
   const now = new Date();
-  const DAY = 86400000;
+  const dl = new Date(deadline);
+  const todayStr = now.toISOString().slice(0,10);
+  const tmrStr = new Date(now.getTime() + 86400000).toISOString().slice(0,10);
+
+  const diffDays = Math.round((dl - now) / 86400000);
+
+  if (deadline === todayStr) return { text: "今日", cls: "dl-today" };
+  if (deadline === tmrStr)   return { text: "明日", cls: "dl-soon" };
+  if (diffDays < 0)          return { text: `${Math.abs(diffDays)}日超過`, cls: "dl-overdue" };
+  if (diffDays <= 3)         return { text: `${diffDays}日後`, cls: "dl-soon" };
+  if (diffDays <= 14)        return { text: `${diffDays}日後`, cls: "dl-normal" };
+
+  const weeks = Math.round(diffDays / 7);
+  if (diffDays < 60)         return { text: `${weeks}週間後`, cls: "dl-normal" };
+
+  const months = Math.round(diffDays / 30);
+  return { text: `${months}ヶ月後`, cls: "dl-normal" };
+}
+
+// ── Score ──
+function score(t) {
+  const now = new Date(), DAY = 86400000;
   const p = {高:1.0, 中:0.7, 低:0.4};
-
   const hasDeadline = !!t.deadline;
+  const days = (safeDate(t.deadline) - now) / DAY;
+  const remain = t.estimate * (1 - t.progress / 100);
+  const layer = hasDeadline ? 100 : 0;
+  const urgency = hasDeadline ? (days <= 0 ? 3.0 : 1 / (days + 0.3)) : 0;
+  const capacity = days * DAY_HOURS;
+  const risk = hasDeadline ? (capacity <= 0 ? 3.0 : Math.min(3.0, remain / (capacity * 0.8))) : 0;
+  const noDeadline = !hasDeadline ? (t.status === "待機" ? 2.0 : 1.0) : 0;
+  const momentum = t.progress > 0 ? 0.4 : 0;
+  const quick = 1 / (remain + 1);
+  const priority = p[t.priority] * 0.3;
+  const heavyGuard = remain > 5 ? 0.3 : 0;
+  if (hasDeadline && remain > days * DAY_HOURS * 1.5) return 9999;
+  return layer + urgency + risk + noDeadline + momentum + quick * 0.3 + priority + heavyGuard;
+}
 
-  let days = (safeDate(t.deadline) - now) / DAY;
-  let remain = t.estimate * (1 - t.progress / 100);
+function sortTasks() { tasks.sort((a, b) => score(b) - score(a)); }
 
-  /* =========================
-     ① レイヤー分離（最重要）
-  ========================= */
-  let layer = hasDeadline ? 100 : 0;
-  // ← ここで完全に別世界
+function statusInfo(t) {
+  if (t.status === "待機") return { cls: "s-wait",    icon: "⏸", text: "待機" };
+  if (!t.deadline)         return { cls: "s-backlog", icon: "🗂", text: "バックログ" };
+  const d = (safeDate(t.deadline) - new Date()) / 86400000 * DAY_HOURS;
+  if (d < 0)               return { cls: "s-danger",  icon: "🔥", text: "遅延" };
+  if (t.estimate > d)      return { cls: "s-warn",    icon: "⚠",  text: "危険" };
+  if (d < DAY_HOURS * 2)   return { cls: "s-caution", icon: "⏳", text: "注意" };
+  return                          { cls: "s-ok",      icon: "●",  text: "正常" };
+}
 
-  /* =========================
-     ② 締切タスク評価
-  ========================= */
-  let urgency = hasDeadline
-    ? (days <= 0 ? 3.0 : 1 / (days + 0.3))
-    : 0;
+function progClass(t) {
+  if (!t.deadline) return "";
+  const d = (safeDate(t.deadline) - new Date()) / 86400000 * DAY_HOURS;
+  if (d < 0) return "danger";
+  if (t.estimate * (1 - t.progress/100) > d) return "warn";
+  return "";
+}
 
-  let capacity = days * DAY_HOURS;
+// ── Subtask helpers ──
+function subtaskProgress(t) {
+  if (!t.subtasks || t.subtasks.length === 0) return null;
+  const done = t.subtasks.filter(s => s.done).length;
+  return { done, total: t.subtasks.length };
+}
 
-  let risk = hasDeadline
-    ? (capacity <= 0
-        ? 3.0
-        : Math.min(3.0, remain / (capacity * 0.8)))
-    : 0;
+// Auto-sync progress from subtasks if all subtasks checked
+function syncProgressFromSubtasks(t) {
+  if (!t.subtasks || t.subtasks.length === 0) return;
+  const done = t.subtasks.filter(s => s.done).length;
+  t.progress = Math.round((done / t.subtasks.length) * 100);
+}
 
-  /* =========================
-     ③ 期限なし内ランキング
-  ========================= */
-  let noDeadline = 0;
+// ── Render ──
+function render() {
+  autoStatus();
+  sortTasks();
 
-  if(!hasDeadline){
-    if(t.status === "待機"){
-      noDeadline = 2.0;   // 待機上位
-    }else{
-      noDeadline = 1.0;   // バックログ
+  $("tbody").innerHTML = "";
+  $("done-table").innerHTML = "";
+  ["k-todo","k-doing","k-waiting","k-doneK"].forEach(id => $(id).innerHTML = "");
+
+  let doneNum = 0;
+
+  tasks.forEach(t => {
+    if (keyword &&
+        !t.name.toLowerCase().includes(keyword) &&
+        !(t.memo || "").toLowerCase().includes(keyword)) return;
+
+    const remain = t.estimate * (1 - t.progress / 100);
+    const si = statusInfo(t);
+    const pc = progClass(t);
+    const dl = relDeadline(t.deadline);
+    const sp = subtaskProgress(t);
+
+    // subtask hint in name cell
+    const stHint = sp
+      ? `<div class="subtask-hint">${sp.done}/${sp.total} 完了</div>`
+      : "";
+
+    const row = `
+      <tr onclick="edit(${t.id})">
+        <td><div class="task-name">${esc(t.name)}</div>${stHint}</td>
+        <td><span class="dot ${esc(t.priority)}"></span></td>
+        <td><span class="status-badge ${si.cls}">${si.icon} ${esc(si.text)}</span></td>
+        <td><span class="dl-rel ${dl.cls}">${esc(dl.text)}</span></td>
+        <td>
+          <div class="prog-wrap">
+            <div class="prog-bar"><div class="prog-fill ${pc}" style="width:${t.progress}%"></div></div>
+            <button class="quick-btn" onclick="quickProgress(${t.id});event.stopPropagation()" title="進捗+10%">＋</button>
+            <span class="prog-text">${t.progress}% · ${remain.toFixed(1)}h</span>
+          </div>
+        </td>
+        <td>${esc(t.memo || "")}</td>
+        <td>
+          <div class="row-actions">
+            <button class="icon-btn" onclick="toggleWait(${t.id});event.stopPropagation()" title="待機切替">⏸</button>
+            <button class="icon-btn del" onclick="del(${t.id});event.stopPropagation()" title="削除">✕</button>
+          </div>
+        </td>
+      </tr>`;
+
+    if (t.progress >= 100) { $("done-table").innerHTML += row; doneNum++; }
+    else $("tbody").innerHTML += row;
+
+    // Kanban card
+    const card = document.createElement("div");
+    card.className = "k-card";
+    card.draggable = true;
+    card.onclick = () => edit(t.id);
+
+    const dlEl = document.createElement("div");
+    dlEl.className = "k-card-meta";
+
+    const dlSpan = document.createElement("span");
+    dlSpan.className = "dl-rel " + dl.cls;
+    dlSpan.textContent = dl.text;
+
+    const hSpan = document.createElement("span");
+    hSpan.textContent = remain.toFixed(1) + "h";
+
+    dlEl.appendChild(dlSpan);
+    dlEl.appendChild(hSpan);
+
+    const titleEl = document.createElement("div");
+    titleEl.className = "k-card-title";
+
+    const dotSpan = document.createElement("span");
+    dotSpan.className = "dot " + t.priority;
+
+    titleEl.appendChild(dotSpan);
+    titleEl.append(" " + t.name);
+
+    card.appendChild(titleEl);
+    card.appendChild(dlEl);
+
+    if (sp) {
+      const stEl = document.createElement("div");
+      stEl.style.cssText = "font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:4px";
+      stEl.textContent = `${sp.done}/${sp.total} サブタスク`;
+      card.appendChild(stEl);
     }
+
+    card.ondragstart = e => { e.dataTransfer.setData("text/plain", String(t.id)); card.style.opacity = ".4"; };
+    card.ondragend = () => card.style.opacity = "1";
+
+    const col = t.status === "待機" ? "k-waiting" : t.status === "進行中" ? "k-doing" : t.status === "完了" ? "k-doneK" : t.progress > 0 ? "k-doing" : "k-todo";
+    $(col).appendChild(card);
+  });
+
+  $("cnt-todo").textContent  = $("k-todo").children.length;
+  $("cnt-doing").textContent = $("k-doing").children.length;
+  $("cnt-wait").textContent  = $("k-waiting").children.length;
+  $("cnt-done").textContent  = $("k-doneK").children.length;
+  $("doneCount").textContent = doneNum;
+  $("done-wrap").style.display = showDone ? "block" : "none";
+
+  if (tasks.filter(t => t.progress < 100).length === 0) {
+    $("tbody").innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:40px">タスクなし — ＋ で追加してください</td></tr>`;
   }
 
-  /* =========================
-     ④ 補助要素
-  ========================= */
-  let momentum = t.progress > 0 ? 0.4 : 0;
-  let quick = 1 / (remain + 1);
-  let priority = p[t.priority] * 0.3;
-  let heavyGuard = remain > 5 ? 0.3 : 0;
+  renderToday();
+}
 
-  /* =========================
-     ⑤ 超詰み防止
-  ========================= */
-  if(hasDeadline && remain > days * DAY_HOURS * 1.5){
-    return 9999;
+function renderToday() {
+  const now = new Date();
+  $("today-date").textContent = now.toLocaleDateString("ja-JP", { month:"long", day:"numeric", weekday:"short" });
+
+  let h = DAY_HOURS, today = [], carry = [];
+  tasks.filter(t => t.progress < 100).sort((a,b) => score(b)-score(a)).forEach(t => {
+    const r = t.estimate * (1 - t.progress / 100);
+    if (h > 0) {
+      const use = Math.min(h, r);
+      today.push({ name: t.name, use });
+      h -= use;
+      if (r > use) carry.push({ name: t.name, remain: r - use });
+    } else {
+      carry.push({ name: t.name, remain: r });
+    }
+  });
+
+  const itemsEl = $("today-items");
+  if (today.length) {
+    itemsEl.innerHTML = "";
+    today.forEach(x => {
+      const div = document.createElement("div");
+      div.className = "today-item";
+      const nm = document.createElement("span");
+      nm.textContent = x.name;
+      const hh = document.createElement("span");
+      hh.className = "h";
+      hh.textContent = x.use.toFixed(1) + "h";
+      div.appendChild(nm);
+      div.appendChild(hh);
+      itemsEl.appendChild(div);
+    });
+  } else {
+    itemsEl.innerHTML = `<div style="color:var(--muted);font-size:11px;padding:6px 4px">予定なし</div>`;
   }
 
-  /* =========================
-     合計
-  ========================= */
-  return layer
-       + urgency
-       + risk
-       + noDeadline
-       + momentum
-       + quick * 0.3
-       + priority
-       + heavyGuard;
-}
-  
-/* 並び */
-function sortTasks(){
-tasks.sort((a,b)=>score(b)-score(a));
-}
+  const carryEl = $("today-carry");
+  if (carry.length) {
+    const top = carry.slice(0, 3);
+    const other = carry.slice(3).reduce((s,c) => s + c.remain, 0);
+    carryEl.innerHTML = "";
+    const wrapper = document.createElement("div");
+    wrapper.className = "today-carry";
 
-/* 色（元仕様） */
-function color(t){
-let base;
-let d=(safeDate(t.deadline)-new Date())/86400000*DAY_HOURS;
+    const lbl = document.createElement("div");
+    lbl.style.cssText = "margin-bottom:5px;font-weight:600;font-size:10px;letter-spacing:.05em;text-transform:uppercase";
+    lbl.textContent = "明日以降";
+    wrapper.appendChild(lbl);
 
-if(t.status==="待機") base=[59,130,246];
-else if(!t.deadline) base=[75,85,99];
-else if(d<0) base=[239,68,68];
-else if(t.estimate>d) base=[234,179,8];
-else if(d<DAY_HOURS*2) base=[249,115,22];
-else base=[55,65,81];
-
-let f=t.priority==="高"?1:t.priority==="中"?0.75:0.55;
-return `rgb(${base.map(x=>Math.floor(x*f)).join(",")})`;
-}
-
-/* 状態 */
-function status(t){
-if(t.status==="待機") return "⏸ <span style='color:#60a5fa'>待機</span>";
-if(!t.deadline) return "🗂 バックログ";
-let d=(safeDate(t.deadline)-new Date())/86400000*DAY_HOURS;
-if(d<0) return "🔥 <span style='color:#ef4444'>遅延</span>";
-if(t.estimate>d) return "⚠ <span style='color:#facc15'>危険</span>";
-if(d<DAY_HOURS*2) return "⏳ <span style='color:#f59e0b'>注意</span>";
-return "✅ 正常";
+    top.forEach(c => {
+      const row = document.createElement("div");
+      row.className = "today-carry-item";
+      const nm = document.createElement("span"); nm.textContent = c.name;
+      const hh = document.createElement("span"); hh.textContent = c.remain.toFixed(1) + "h";
+      row.appendChild(nm); row.appendChild(hh);
+      wrapper.appendChild(row);
+    });
+    if (other > 0) {
+      const row = document.createElement("div");
+      row.className = "today-carry-item";
+      row.style.color = "var(--muted2)";
+      const nm = document.createElement("span"); nm.textContent = "その他";
+      const hh = document.createElement("span"); hh.textContent = other.toFixed(1) + "h";
+      row.appendChild(nm); row.appendChild(hh);
+      wrapper.appendChild(row);
+    }
+    carryEl.appendChild(wrapper);
+  } else {
+    carryEl.innerHTML = "";
+  }
 }
 
+// ── Subtask modal rendering ──
+function renderSubtaskList(t) {
+  const list = $("subtask-list");
+  const prog = $("subtask-progress");
+  list.innerHTML = "";
 
+  if (!t.subtasks || t.subtasks.length === 0) {
+    prog.textContent = "";
+    return;
+  }
 
-  
-/* today強化 */
-function renderToday(){
-let h=DAY_HOURS, today=[], carry=[];
-let carryTotal=0;
+  const done = t.subtasks.filter(s => s.done).length;
+  prog.textContent = `${done} / ${t.subtasks.length} 完了`;
 
-tasks
-.filter(t=>t.progress<100)
-.sort((a,b)=>score(b)-score(a))
-.forEach(t=>{
-let r=t.estimate*(1-t.progress/100);
+  t.subtasks.forEach((st, idx) => {
+    const row = document.createElement("div");
+    row.className = "subtask-row";
 
-if(h>0){
-let use=Math.min(h,r);
-today.push(`・${esc(t.name)} (${use.toFixed(1)}h)`);
-h-=use;
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = st.done;
+    cb.onchange = () => {
+      st.done = cb.checked;
+      nm.className = "st-name" + (st.done ? " done-st" : "");
+      const d2 = t.subtasks.filter(s => s.done).length;
+      prog.textContent = `${d2} / ${t.subtasks.length} 完了`;
+      // sync progress field
+      $("m_progress").value = Math.round((d2 / t.subtasks.length) * 100);
+    };
 
-if(r>use){
-carry.push({name:t.name,remain:(r-use)});
-carryTotal+=(r-use);
-}
-}else{
-carry.push({name:t.name,remain:r});
-carryTotal+=r;
-}
-});
+    const nm = document.createElement("input");
+    nm.type = "text";
+    nm.className = "st-name" + (st.done ? " done-st" : "");
+    nm.value = st.name;
+    nm.onchange = () => { st.name = nm.value; };
 
-/* 今日 */
-let text = today.join("<br>") || "なし";
+    const del = document.createElement("button");
+    del.className = "st-del";
+    del.textContent = "×";
+    del.onclick = () => {
+      t.subtasks.splice(idx, 1);
+      renderSubtaskList(t);
+      const d2 = t.subtasks.filter(s => s.done).length;
+      $("m_progress").value = t.subtasks.length > 0 ? Math.round((d2 / t.subtasks.length) * 100) : $("m_progress").value;
+    };
 
-/* 明日以降 */
-if(carry.length){
-text += "<hr>明日以降<br>";
-
-let top = carry.slice(0,3);
-let others = carry.slice(3);
-
-/* 上位3件 */
-top.forEach(c=>{
-text += `・${esc(c.name)} (${c.remain.toFixed(1)}h)<br>`;
-});
-
-/* その他合計 */
-if(others.length){
-let otherTotal = others.reduce((sum,c)=>sum+c.remain,0);
-
-text += `<div style="margin-top:6px;color:#9ca3af">
-その他: ${otherTotal.toFixed(1)}h
-</div>`;
-}
-}
-
-$("today").innerHTML = text;
+    row.appendChild(cb);
+    row.appendChild(nm);
+    row.appendChild(del);
+    list.appendChild(row);
+  });
 }
 
-
-  
-/* 描画 */
-function render(){
-autoStatus();
-sortTasks();
-
-$("tbody").innerHTML="";
-$("done").innerHTML="";
-["todo","doing","waiting","doneK"].forEach(id=>$(id).innerHTML="");
-
-let doneNum=0;
-
-tasks.forEach(t=>{
-
-if(keyword && !t.name.toLowerCase().includes(keyword) && !(t.memo||"").toLowerCase().includes(keyword)) return;
-
-let remain=t.estimate*(1-t.progress/100);
-
-let row=`
-<tr>
-<td onclick="edit(${t.id})">${t.name}</td>
-<td><span class="badge ${t.priority}"></span></td>
-<td>${status(t)}</td>
-<td>${t.deadline||""}</td>
-<td>
-${t.progress}% (${remain.toFixed(1)}h)
-<button onclick="quickProgress(${t.id});event.stopPropagation()">＋</button>
-</td>
-<td>${t.memo||""}</td>
-<td>
-<button onclick="toggleWait(${t.id});event.stopPropagation()">⏸</button>
-<button onclick="del(${t.id});event.stopPropagation()">×</button>
-</td>
-</tr>`;
-
-if(t.progress==100){$("done").innerHTML+=row;doneNum++;}
-else{$("tbody").innerHTML+=row;}
-
-/* カンバン */
-let c=document.createElement("div");
-c.className="task";
-c.style.background=color(t);
-c.onclick=()=>edit(t.id);
-
-c.innerHTML=`<div class="small">${t.deadline||""}</div><b>${t.name}</b>`;
-c.draggable=true;
-
-c.ondragstart=e=>{
-e.dataTransfer.setData("text/plain",String(t.id));
-c.style.opacity=.5;
-};
-c.ondragend=()=>c.style.opacity=1;
-
-let col=
-t.status==="待機"?"waiting":
-t.status==="進行中"?"doing":
-t.status==="完了"?"doneK":
-t.progress>0?"doing":"todo";
-
-$(col).appendChild(c);
-});
-
-$("doneCount").innerText=doneNum;
-$("doneWrap").style.display=showDone?"block":"none";
-
-if(tasks.length===0){
-$("tbody").innerHTML="<tr><td colspan='7' style='text-align:center;color:#6b7280'>タスクなし</td></tr>";
+function addSubtask() {
+  const inp = $("subtask-input");
+  const name = inp.value.trim();
+  if (!name || currentId === null) return;
+  const t = tasks.find(x => x.id == currentId);
+  if (!t) return;
+  t.subtasks.push({ name, done: false });
+  inp.value = "";
+  renderSubtaskList(t);
 }
 
-renderToday();
+// ── Edit modal ──
+function edit(id) {
+  const t = tasks.find(x => x.id == id);
+  if (!t) return;
+  currentId = id;
+  $("m_name").value     = t.name;
+  $("m_priority").value = t.priority;
+  $("m_deadline").value = t.deadline || "";
+  $("m_estimate").value = t.estimate;
+  $("m_progress").value = t.progress;
+  $("m_memo").value     = t.memo || "";
+  $("subtask-input").value = "";
+  renderSubtaskList(t);
+  $("modal").classList.add("open");
 }
 
-/* 進捗＋ */
-function quickProgress(id){
-let t=tasks.find(x=>x.id==id);
-if(!t)return;
-t.progress=Math.min(100,t.progress+10);
-save();
+function saveModal() {
+  const t = tasks.find(x => x.id == currentId);
+  if (!t) return;
+  t.name     = $("m_name").value;
+  t.priority = $("m_priority").value;
+  t.deadline = $("m_deadline").value;
+  t.estimate = +$("m_estimate").value;
+  t.progress = +$("m_progress").value;
+  t.memo     = $("m_memo").value;
+  if (t.progress >= 100) t.status = "完了";
+  closeModal();
+  save();
 }
 
-/* 編集 */
-function edit(id){
-let t=tasks.find(x=>x.id==id);
-currentId=id;
+function closeModal() { $("modal").classList.remove("open"); }
 
-$("m_name").value=t.name;
-$("m_priority").value=t.priority;
-$("m_deadline").value=t.deadline||"";
-$("m_estimate").value=t.estimate;
-$("m_progress").value=t.progress;
-$("m_memo").value=t.memo||"";
-
-$("modal").style.display="block";
+// ── Actions ──
+function quickProgress(id) {
+  const t = tasks.find(x => x.id == id);
+  if (!t) return;
+  t.progress = Math.min(100, t.progress + 10);
+  save();
 }
 
-function saveModal(){
-let t=tasks.find(x=>x.id==currentId);
-
-t.name=$("m_name").value;
-t.priority=$("m_priority").value;
-t.deadline=$("m_deadline").value;
-t.estimate=+$("m_estimate").value;
-t.progress=+$("m_progress").value;
-t.memo=$("m_memo").value;
-
-if(t.progress>=100)t.status="完了";
-
-closeModal();
-save();
+function toggleWait(id) {
+  const t = tasks.find(x => x.id == id);
+  t.status = t.status === "待機" ? "進行中" : "待機";
+  save();
 }
 
-function closeModal(){ $("modal").style.display="none"; }
-
-/* 操作 */
-function toggleWait(id){
-let t=tasks.find(x=>x.id==id);
-t.status=t.status==="待機"?"進行中":"待機";
-save();
+function del(id) {
+  if (!confirm("このタスクを削除しますか？")) return;
+  tasks = tasks.filter(t => t.id != id);
+  save();
 }
 
-function del(id){
-if(!confirm("削除する？")) return;
-tasks=tasks.filter(t=>t.id!=id);
-save();
+function toggleDone() {
+  showDone = !showDone;
+  $("done-chevron").classList.toggle("open", showDone);
+  render();
 }
 
-function toggleDone(){showDone=!showDone;render();}
-function allowDrop(e){e.preventDefault();}
+function allowDrop(e) { e.preventDefault(); }
 
-/* drop */
-function drop(e,s){
-e.preventDefault();
-
-let id=Number(e.dataTransfer.getData("text/plain"));
-let t=tasks.find(x=>x.id==id);
-if(!t)return;
-
-t.status=s;
-
-if(s==="完了")t.progress=100;
-if(s==="進行中"&&t.progress===0)t.progress=10;
-
-save();
+function drop(e, s) {
+  e.preventDefault();
+  const id = Number(e.dataTransfer.getData("text/plain"));
+  const t = tasks.find(x => x.id == id);
+  if (!t) return;
+  t.status = s;
+  if (s === "完了") t.progress = 100;
+  if (s === "進行中" && t.progress === 0) t.progress = 10;
+  save();
 }
 
-/* backup restore */
-function restoreBackup(){
-if(!confirm("バックアップ復元する？"))return;
-let data=localStorage.getItem("tasks_backup");
-if(data){
-tasks=JSON.parse(data);
-save();
-}
+// ── Views ──
+function showList() {
+  $("list-view").style.display = "block";
+  $("board-view").style.display = "none";
+  $("btnList").classList.add("active");
+  $("btnBoard").classList.remove("active");
 }
 
-/* 週報 */
-function copyReport(){
-let rows=[["タスク","優先","状態","期限","進捗"]];
-tasks.forEach(t=>{
-rows.push([
-t.name,
-t.priority,
-status(t).replace(/<[^>]+>/g,""),
-t.deadline||"",
-t.progress+"%"
-]);
-});
-navigator.clipboard.writeText(rows.map(r=>r.join("\t")).join("\n"));
-alert("コピーOK");
+function showBoard() {
+  $("list-view").style.display = "none";
+  $("board-view").style.display = "grid";
+  $("btnList").classList.remove("active");
+  $("btnBoard").classList.add("active");
 }
 
-/* UI */
-$("btnList").onclick=()=>{$("list").style.display="block";$("board").style.display="none";};
-$("btnBoard").onclick=()=>{$("list").style.display="none";$("board").style.display="grid";};
+// ── Export / Import ──
+function copyReport() {
+  const rows = [["タスク","優先","状態","期限","進捗"]];
+  tasks.forEach(t => rows.push([t.name, t.priority, statusInfo(t).text, t.deadline || "", t.progress + "%"]));
+  navigator.clipboard.writeText(rows.map(r => r.join("\t")).join("\n"));
+  showToast("週報をコピーしました");
+}
 
-document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal();});
+function exportTasks() {
+  const a = document.createElement("a");
+  a.href = "data:application/json," + encodeURIComponent(JSON.stringify(tasks, null, 2));
+  a.download = "taskflow-" + new Date().toISOString().slice(0,10) + ".json";
+  a.click();
+  showToast("エクスポートしました");
+}
 
-$("btnList").click();
+function importTasks(e) {
+  const f = e.target.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const imported = JSON.parse(ev.target.result);
+      imported.forEach(t => { if (!t.subtasks) t.subtasks = []; });
+      tasks = imported;
+      save();
+      showToast("インポートしました");
+    } catch { showToast("ファイル形式エラー"); }
+  };
+  reader.readAsText(f);
+}
+
+$("modal").addEventListener("click", e => { if (e.target === $("modal")) closeModal(); });
+
+showList();
 render();
 </script>
-
-  
 </body>
 </html>
