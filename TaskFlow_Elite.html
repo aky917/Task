@@ -14,61 +14,25 @@ background:#0f172a;border:1px solid #1f2937;color:white;padding:6px;border-radiu
 transition:.15s;cursor:pointer;
 }
 
-/* ボタン */
-button:hover{background:#1f2937;transform:translateY(-1px);}
-button:active{transform:translateY(1px) scale(0.97);filter:brightness(.85);}
-button:focus{outline:1px solid #3b82f6;}
+button:hover{background:#1f2937;transform:translateY(-1px)}
+button:active{transform:translateY(1px) scale(0.97)}
 
-#addBtn{background:#2563eb;}
-#addBtn:hover{background:#3b82f6;}
-button[onclick*="del"]{background:#7f1d1d;}
-button[onclick*="del"]:hover{background:#b91c1c;}
+#addBtn{background:#2563eb}
 
-/* フラッシュ */
-.flash{animation:flash .6s;}
-@keyframes flash{
-50%{box-shadow:0 0 20px rgba(59,130,246,.8)}
-}
-
-/* 入力バー */
-.formbar{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
-#name{width:240px}
-#memo{width:200px}
-#estimate{width:70px}
-label{font-size:11px;color:#9ca3af}
-.subbtns{display:flex;gap:6px}
-
-/* date */
-input[type="date"]{color-scheme:dark}
-input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(1);cursor:pointer}
-
-/* テーブル */
-table{width:100%;table-layout:fixed;border-collapse:collapse}
-th,td{padding:8px;border-top:1px solid #1f2937}
-th{color:#9ca3af}
-tbody tr:hover{background:#273449}
-
-/* 優先 */
-.badge{width:12px;height:12px;border-radius:50%;display:inline-block}
-.高{background:#ef4444}
-.中{background:#3b82f6}
-.低{background:#22c55e}
-
-/* カンバン */
 .kanban{display:none;grid-template-columns:repeat(4,1fr);gap:16px}
+
 .task{
 padding:8px;margin:6px;border-radius:8px;
-cursor:pointer;font-size:12px;transition:.2s;
+cursor:pointer;font-size:12px;
 box-shadow:0 2px 6px rgba(0,0,0,.2);
 }
-.task:hover{transform:scale(1.02)}
+
 .small{font-size:10px;color:#9ca3af}
 
-/* トースト */
 #toast{
 position:fixed;bottom:20px;right:20px;
 background:#16a34a;color:white;
-padding:10px 16px;border-radius:8px;
+padding:10px;border-radius:8px;
 opacity:0;transform:translateY(10px);
 transition:.3s;
 }
@@ -82,23 +46,26 @@ transition:.3s;
 
 <div class="card"><b>今日の流れ</b><div id="today"></div></div>
 
-<div class="card"><input id="search" placeholder="検索" style="width:100%"></div>
+<div class="card">
+<input id="search" placeholder="検索" style="width:100%">
+</div>
 
-<div class="card formbar">
-<div><label>タスク</label><br><input id="name" placeholder="例：資料作成"></div>
-<div><label>優先</label><br>
-<select id="priority"><option>高</option><option>中</option><option>低</option></select></div>
-<div><label>期限</label><br><input id="deadline" type="date"></div>
-<div><label>工数(h)</label><br><input id="estimate" type="number" step="0.5"></div>
-<div><label>メモ</label><br><input id="memo"></div>
-<div><button id="addBtn">追加</button></div>
+<div class="card">
+<input id="name" placeholder="タスク">
+<select id="priority">
+<option>高</option><option>中</option><option>低</option>
+</select>
+<input id="deadline" type="date">
+<input id="estimate" type="number" step="0.5" placeholder="工数">
+<input id="memo" placeholder="メモ">
+<button id="addBtn">追加</button>
+</div>
 
-<div class="subbtns">
+<div class="card">
 <button onclick="copyReport()">週報</button>
 <button onclick="exportTasks()">保存</button>
 <input type="file" id="file" style="display:none" onchange="importTasks(event)">
 <button onclick="$('file').click()">復元</button>
-</div>
 </div>
 
 <div class="card">
@@ -108,10 +75,12 @@ transition:.3s;
 
 <div id="list" class="card">
 <table>
-<thead><tr>
+<thead>
+<tr>
 <th>タスク</th><th>優先</th><th>状態</th>
 <th>期限</th><th>進捗</th><th>メモ</th><th></th>
-</tr></thead>
+</tr>
+</thead>
 <tbody id="tbody"></tbody>
 </table>
 
@@ -141,10 +110,9 @@ transition:.3s;
 <label>工数</label><input id="m_estimate" style="width:100%"><br><br>
 <label>進捗</label><input id="m_progress" type="number" min="0" max="100" style="width:100%"><br><br>
 <label>メモ</label><textarea id="m_memo" style="width:100%"></textarea><br><br>
-<div style="display:flex;gap:10px;justify-content:flex-end">
+
 <button onclick="saveModal()">保存</button>
 <button onclick="closeModal()">閉じる</button>
-</div>
 
 </div>
 </div>
@@ -160,21 +128,34 @@ const DAY_HOURS=8;
 let tasks=JSON.parse(localStorage.getItem("tasks")||"[]");
 let keyword="",showDone=false,currentId=null;
 
-/* Toast */
-function showToast(msg="保存しました"){
+/* safe date */
+function safeDate(d){
+  return d ? new Date(d) : new Date("2999-12-31");
+}
+
+/* 保存 */
+function save(){
+  localStorage.setItem("tasks",JSON.stringify(tasks));
+  render();
+  showToast();
+}
+
+/* toast */
+function showToast(){
 let t=$("toast");
-t.innerText=msg;
 t.style.opacity=1;
 t.style.transform="translateY(0)";
 setTimeout(()=>{
 t.style.opacity=0;
 t.style.transform="translateY(10px)";
-},1500);
+},1200);
 }
 
 /* Enter */
-["name","estimate","memo"].forEach(id=>{
-$(id).onkeydown=e=>{if(e.key==="Enter") $("addBtn").click();}
+document.addEventListener("keydown",e=>{
+if(e.key==="Enter" && document.activeElement.tagName!=="TEXTAREA"){
+$("addBtn").click();
+}
 });
 
 /* 検索 */
@@ -201,67 +182,39 @@ status:"未着手"
 ["name","deadline","estimate","memo"].forEach(i=>$(i).value="");
 
 save();
-$("name").focus();
-
-$("addBtn").classList.add("flash");
-setTimeout(()=>$("addBtn").classList.remove("flash"),600);
 };
 
-/* 並び替え */
+/* 並び */
 function sortTasks(){
 tasks.sort((a,b)=>{
-let da=(new Date(a.deadline)-new Date())/86400000*DAY_HOURS;
-let db=(new Date(b.deadline)-new Date())/86400000*DAY_HOURS;
+let da=(safeDate(a.deadline)-new Date())/86400000*DAY_HOURS;
+let db=(safeDate(b.deadline)-new Date())/86400000*DAY_HOURS;
 return (da-a.estimate)-(db-b.estimate);
 });
 }
 
-/* 色 */
-function color(t){
-let base;
-let d=(new Date(t.deadline)-new Date())/86400000*DAY_HOURS;
-if(t.status==="待機") base=[59,130,246];
-else if(!t.deadline) base=[75,85,99];
-else if(d<0) base=[239,68,68];
-else if(t.estimate>d) base=[234,179,8];
-else if(d<DAY_HOURS*2) base=[249,115,22];
-else base=[55,65,81];
-let f=t.priority==="高"?1:t.priority==="中"?0.75:0.55;
-return `rgb(${base.map(x=>Math.floor(x*f)).join(",")})`;
-}
-
 /* 状態 */
 function status(t){
-if(t.status==="待機") return "⏸ <span style='color:#60a5fa'>待機</span>";
+if(t.status==="待機") return "⏸ 待機";
 if(!t.deadline) return "🗂 バックログ";
-let d=(new Date(t.deadline)-new Date())/86400000*DAY_HOURS;
-if(d<0) return "🔥 <span style='color:#ef4444'>遅延</span>";
-if(t.estimate>d) return "⚠ <span style='color:#facc15'>危険</span>";
-if(d<DAY_HOURS*2) return "⏳ <span style='color:#f59e0b'>注意</span>";
+let d=(safeDate(t.deadline)-new Date())/86400000*DAY_HOURS;
+if(d<0) return "🔥 遅延";
+if(t.estimate>d) return "⚠ 危険";
+if(d<DAY_HOURS*2) return "⏳ 注意";
 return "✅ 正常";
 }
 
 /* today */
 function renderToday(){
-let h=DAY_HOURS,today=[],carry=[],carryH=0;
+let h=DAY_HOURS,out=[];
 tasks.forEach(t=>{
-let remain=t.estimate*(1-t.progress/100);
-if(remain<=0) return;
-if(h>0){
-let use=Math.min(h,remain);
-today.push(`・${t.name} (${use.toFixed(1)}h)`);
+let r=t.estimate*(1-t.progress/100);
+if(r<=0||h<=0) return;
+let use=Math.min(h,r);
+out.push(`${t.name} (${use.toFixed(1)}h)`);
 h-=use;
-if(remain>use){let r=remain-use;carry.push(`・${t.name} 残り${r.toFixed(1)}h`);carryH+=r;}
-}else{carry.push(`・${t.name} (${remain.toFixed(1)}h)`);carryH+=remain;}
 });
-let text=(today.join("<br>")||"なし");
-if(carry.length){
-text+="<hr>明日以降<br>"
-+carry.slice(0,3).join("<br>")
-+(carry.length>3?"<br>…":"")
-+`<br><span style="color:#9ca3af">合計 ${carryH.toFixed(1)}h</span>`;
-}
-$("today").innerHTML=text;
+$("today").innerHTML=out.join("<br>")||"なし";
 }
 
 /* 描画 */
@@ -270,19 +223,22 @@ sortTasks();
 
 $("tbody").innerHTML="";
 $("done").innerHTML="";
-["todo","doing","waiting","doneK"].forEach(id=>$(id).innerHTML="");
+["todo","doing","waiting","doneK"].forEach(i=>$(i).innerHTML="");
 
 let doneNum=0;
 
 tasks.forEach(t=>{
+
+if(t.progress>=100) t.status="完了";
+
 if(keyword && !t.name.toLowerCase().includes(keyword) && !(t.memo||"").toLowerCase().includes(keyword)) return;
 
 let remain=t.estimate*(1-t.progress/100);
 
 let row=`
-<tr>
-<td onclick="edit(${t.id})">${t.name}</td>
-<td><span class="badge ${t.priority}"></span></td>
+<tr onclick="edit(${t.id})">
+<td>${t.name}</td>
+<td>${t.priority}</td>
 <td>${status(t)}</td>
 <td>${t.deadline||""}</td>
 <td>${t.progress}% (${remain.toFixed(1)}h)</td>
@@ -296,21 +252,25 @@ let row=`
 if(t.progress==100){$("done").innerHTML+=row;doneNum++;}
 else{$("tbody").innerHTML+=row;}
 
+/* カンバン */
 let c=document.createElement("div");
 c.className="task";
-c.style.background=color(t);
-c.onclick=()=>edit(t.id);
-
-c.innerHTML=`<div class="small">${t.deadline||""}</div><b>${t.name}</b>`;
+c.textContent=t.name;
 c.draggable=true;
-c.ondragstart=e=>e.dataTransfer.setData("id",t.id);
 
-let col=t.status==="待機"?"waiting":
+c.ondragstart=e=>{
+e.dataTransfer.setData("text/plain",String(t.id));
+};
+c.ondragend=()=>c.style.opacity=1;
+
+let col=
+t.status==="待機"?"waiting":
 t.status==="進行中"?"doing":
-t.progress==100?"doneK":
+t.status==="完了"?"doneK":
 t.progress>0?"doing":"todo";
 
 $(col).appendChild(c);
+
 });
 
 $("doneCount").innerText=doneNum;
@@ -333,18 +293,23 @@ $("m_memo").value=t.memo||"";
 
 $("modal").style.display="block";
 }
+
 function saveModal(){
 let t=tasks.find(x=>x.id==currentId);
+
 t.name=$("m_name").value;
 t.priority=$("m_priority").value;
 t.deadline=$("m_deadline").value;
 t.estimate=+$("m_estimate").value;
 t.progress=+$("m_progress").value;
 t.memo=$("m_memo").value;
-if(t.progress>=100)t.status="完了";
+
+if(t.progress>=100) t.status="完了";
+
 closeModal();
 save();
 }
+
 function closeModal(){ $("modal").style.display="none"; }
 
 /* 操作 */
@@ -353,24 +318,34 @@ let t=tasks.find(x=>x.id==id);
 t.status=t.status==="待機"?"進行中":"待機";
 save();
 }
-function del(id){ tasks=tasks.filter(t=>t.id!=id); save(); }
-function toggleDone(){ showDone=!showDone; render(); }
+function del(id){
+tasks=tasks.filter(t=>t.id!=id);
+save();
+}
+function toggleDone(){showDone=!showDone;render();}
 function allowDrop(e){e.preventDefault();}
+
 function drop(e,s){
-let id=+e.dataTransfer.getData("id");
+e.preventDefault();
+
+let id=Number(e.dataTransfer.getData("text/plain"));
 let t=tasks.find(x=>x.id==id);
+if(!t) return;
+
 t.status=s;
+
 if(s==="完了") t.progress=100;
 if(s==="進行中" && t.progress===0) t.progress=10;
+
 save();
 }
 
-/* backup */
+/* 保存・復元 */
 function exportTasks(){
 let blob=new Blob([JSON.stringify(tasks,null,2)]);
 let a=document.createElement("a");
 a.href=URL.createObjectURL(blob);
-a.download="backup.json";
+a.download="tasks.json";
 a.click();
 }
 function importTasks(e){
@@ -384,13 +359,7 @@ r.readAsText(e.target.files[0]);
 function copyReport(){
 let rows=[["タスク","優先","状態","期限","進捗"]];
 tasks.forEach(t=>{
-rows.push([
-t.name,
-t.priority,
-status(t).replace(/<[^>]+>/g,""),
-t.deadline||"",
-t.progress+"%"
-]);
+rows.push([t.name,t.priority,status(t),t.deadline||"",t.progress+"%"]);
 });
 navigator.clipboard.writeText(rows.map(r=>r.join("\t")).join("\n"));
 alert("コピーOK");
@@ -399,8 +368,6 @@ alert("コピーOK");
 /* UI */
 $("btnList").onclick=()=>{$("list").style.display="block";$("board").style.display="none";};
 $("btnBoard").onclick=()=>{$("list").style.display="none";$("board").style.display="grid";};
-
-document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal();});
 
 $("btnList").click();
 render();
