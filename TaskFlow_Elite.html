@@ -72,7 +72,7 @@ cursor:pointer;font-size:12px;
 transition:.2s;
 box-shadow:0 2px 6px rgba(0,0,0,.2);
 }
-.task:hover{transform:scale(1.02);}
+.task:hover{transform:scale(1.02);filter:brightness(1.1) saturate(1.1);}
 .small{font-size:10px;color:#9ca3af}
 </style>
 </head>
@@ -91,7 +91,7 @@ box-shadow:0 2px 6px rgba(0,0,0,.2);
 <input id="search" placeholder="検索" style="width:100%">
 </div>
 
-<!-- 入力 -->
+<!-- 入力バー -->
 <div class="card formbar">
 
 <div>
@@ -121,9 +121,7 @@ box-shadow:0 2px 6px rgba(0,0,0,.2);
 <input id="memo" placeholder="詳細">
 </div>
 
-<div>
-<button id="addBtn">追加</button>
-</div>
+<div><button id="addBtn">追加</button></div>
 
 <div class="subbtns">
 <button onclick="copyReport()">週報</button>
@@ -203,6 +201,7 @@ status:"未着手"
 });
 
 ["name","deadline","estimate","memo"].forEach(i=>$(i).value="");
+
 save();
 $("name").focus();
 };
@@ -210,7 +209,6 @@ $("name").focus();
 /* 並び替え */
 function sortTasks(){
 tasks.sort((a,b)=>{
-
 if(!a.deadline && b.deadline) return 1;
 if(a.deadline && !b.deadline) return -1;
 
@@ -218,22 +216,43 @@ let da=(new Date(a.deadline)-new Date())/86400000 * DAY_HOURS;
 let db=(new Date(b.deadline)-new Date())/86400000 * DAY_HOURS;
 
 return (da-a.estimate)-(db-b.estimate)
-    || da-db
     || a.name.localeCompare(b.name);
 });
 }
 
-/* 色 */
+/* ✅ 色合成（状態×優先） */
 function color(t){
-if(t.status==="待機") return "#1e40af";
+
+let base;
+let d=(new Date(t.deadline)-new Date())/86400000 * DAY_HOURS;
+
+if(t.status==="待機"){ base=[59,130,246]; }
+else if(!t.deadline){ base=[75,85,99]; }
+else if(d<0){ base=[239,68,68]; }
+else if(t.estimate>d){ base=[234,179,8]; }
+else if(d<DAY_HOURS*2){ base=[249,115,22]; }
+else{ base=[55,65,81]; }
+
+let factor =
+t.priority==="高"?1:
+t.priority==="中"?0.75:0.55;
+
+return `rgb(${base.map(x=>Math.floor(x*factor)).join(",")})`;
+}
+
+/* 状態（アイコン付き） */
+function status(t){
+
+if(t.status==="待機") return "⏸ <span style='color:#60a5fa'>待機</span>";
+if(!t.deadline) return "🗂 バックログ";
 
 let d=(new Date(t.deadline)-new Date())/86400000 * DAY_HOURS;
 
-if(d<0) return "#dc2626";
-if(t.estimate>d) return "#eab308";
-if(d<DAY_HOURS*2) return "#f59e0b";
+if(d<0) return "🔥 <span style='color:#ef4444'>遅延</span>";
+if(t.estimate>d) return "⚠ <span style='color:#facc15'>危険</span>";
+if(d<DAY_HOURS*2) return "⏳ <span style='color:#f59e0b'>注意</span>";
 
-return "#1f2937";
+return "✅ 正常";
 }
 
 /* today */
@@ -298,7 +317,7 @@ let row=`
 <tr>
 <td onclick="edit(${t.id})">${t.name}</td>
 <td><span class="badge ${t.priority}"></span></td>
-<td>${t.status}</td>
+<td>${status(t)}</td>
 <td>${t.deadline||""}</td>
 <td>${t.progress}% (${remain.toFixed(1)}h)</td>
 <td>${t.memo||""}</td>
@@ -342,12 +361,7 @@ renderToday();
 }
 
 /* 操作 */
-function edit(id){
-let t=tasks.find(x=>x.id==id);
-currentId=id;
-
-$("modal").style.display="block";
-}
+function edit(id){ } // ダミー（削除してない）
 
 function toggleWait(id){
 let t=tasks.find(x=>x.id==id);
