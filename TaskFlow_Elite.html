@@ -275,26 +275,49 @@ status:"未着手"
 save();
 };
 
+  
 /* スコア */
 function score(t){
-  const p = {高:3, 中:2, 低:1};
+  const now = new Date();
+  const p = {高:1.0, 中:0.7, 低:0.4};
 
-  let days = (safeDate(t.deadline)-new Date())/86400000;
+  let days = (safeDate(t.deadline)-now)/86400000;
   let remain = t.estimate*(1-t.progress/100);
 
-  let urgency = days <= 0 ? 10 :
-                days <= 1 ? 6 :
-                days <= 3 ? 3 : 0;
+  let noDeadline = !t.deadline;
 
-  let danger = (remain > days*DAY_HOURS) ? 8 : 0;
+  // 緊急度
+  let urgency = noDeadline
+    ? 0.05
+    : (days <= 0 ? 1.0 : 1 / (days + 1));
 
-  return (p[t.priority]*5)
-       + urgency
-       + danger
-       - remain*0.3;
+  // リスク
+  let capacity = days * DAY_HOURS;
+  let risk = noDeadline
+    ? 0
+    : (capacity <= 0 ? 1 : Math.min(1, remain / capacity));
+
+  // 進行中ボーナス
+  let momentum = t.progress > 0 ? 0.3 : 0;
+
+  // 軽さ
+  let quick = 1 / (remain + 0.5);
+
+  // 優先
+  let priority = p[t.priority];
+
+  // ✅ 期限なし補正（重要）
+  let backlogBoost = noDeadline && t.priority === "高" ? 0.25 : 0;
+
+  return (priority * 0.4)
+       + (urgency * 0.8)
+       + (risk * 1.2)
+       + (momentum * 0.3)
+       + (quick * 0.3)
+       + backlogBoost;
 }
-``
 
+  
 /* 並び */
 function sortTasks(){
 tasks.sort((a,b)=>score(b)-score(a));
