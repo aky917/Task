@@ -32,14 +32,7 @@ th,td{padding:8px;border-top:1px solid #1f2937}
 th{text-align:left;color:#9ca3af}
 tbody tr:hover{background:#273449;cursor:pointer}
 
-th:nth-child(1){width:32%}
-th:nth-child(2){width:5%}
-th:nth-child(3){width:12%}
-th:nth-child(4){width:12%}
-th:nth-child(5){width:15%}
-th:nth-child(6){width:20%}
-th:nth-child(7){width:4%}
-
+/* 優先 */
 .badge{width:12px;height:12px;border-radius:50%;display:inline-block}
 .高{background:#ef4444;}
 .中{background:#3b82f6;}
@@ -145,19 +138,58 @@ box-shadow:0 2px 6px rgba(0,0,0,.2);
 <div class="card" ondrop="drop(event,'完了')" ondragover="allowDrop(event)">完了<div id="doneK"></div></div>
 </div>
 
-<!-- モーダル -->
+<!-- ✅ 改良モーダル -->
 <div id="modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7)">
-<div style="background:#111827;padding:20px;margin:100px auto;width:320px">
+<div style="background:#111827;padding:20px;margin:100px auto;width:340px;border-radius:12px">
 
-<input id="m_name"><br><br>
-<select id="m_priority"><option>高</option><option>中</option><option>低</option></select><br><br>
-<input id="m_deadline" type="date"><br><br>
-<input id="m_estimate"><br><br>
-<input id="m_progress"><br><br>
-<textarea id="m_memo"></textarea><br><br>
+<div>
+<label>タスク</label><br>
+<input id="m_name" placeholder="例：資料作成" style="width:100%">
+</div>
 
+<br>
+
+<div>
+<label>優先度</label><br>
+<select id="m_priority" style="width:100%">
+<option>高</option><option>中</option><option>低</option>
+</select>
+</div>
+
+<br>
+
+<div>
+<label>期限</label><br>
+<input id="m_deadline" type="date" style="width:100%">
+</div>
+
+<br>
+
+<div>
+<label>工数（時間）</label><br>
+<input id="m_estimate" placeholder="例：3" style="width:100%">
+</div>
+
+<br>
+
+<div>
+<label>進捗（%）</label><br>
+<input id="m_progress" type="number" min="0" max="100" placeholder="0〜100" style="width:100%">
+</div>
+
+<br>
+
+<div>
+<label>メモ</label><br>
+<textarea id="m_memo" placeholder="詳細・補足など" style="width:100%"></textarea>
+</div>
+
+<br>
+
+<div style="display:flex;gap:10px;justify-content:flex-end">
 <button onclick="saveModal()">保存</button>
 <button onclick="closeModal()">閉じる</button>
+</div>
 
 </div>
 </div>
@@ -277,7 +309,6 @@ $("today").innerHTML=text;
 
 /* 描画 */
 function render(){
-
 sortTasks();
 
 $("tbody").innerHTML="";
@@ -306,16 +337,12 @@ let row=`
 if(t.progress==100){$("done").innerHTML+=row;doneNum++;}
 else{$("tbody").innerHTML+=row;}
 
-/* カンバン */
 let c=document.createElement("div");
 c.className="task";
 c.style.background=color(t);
 c.onclick=()=>edit(t.id);
 
-c.innerHTML=`
-<div class="small">${t.deadline||""}</div>
-<b>${t.name}</b>`;
-
+c.innerHTML=`<div class="small">${t.deadline||""}</div><b>${t.name}</b>`;
 c.draggable=true;
 c.ondragstart=e=>e.dataTransfer.setData("id",t.id);
 
@@ -325,12 +352,10 @@ t.progress==100?"doneK":
 t.progress>0?"doing":"todo";
 
 $(col).appendChild(c);
-
 });
 
 $("doneCount").innerText=doneNum;
 $("doneWrap").style.display=showDone?"block":"none";
-
 renderToday();
 }
 
@@ -338,29 +363,38 @@ renderToday();
 function edit(id){
 let t=tasks.find(x=>x.id==id);
 currentId=id;
+
 $("m_name").value=t.name;
 $("m_priority").value=t.priority;
 $("m_deadline").value=t.deadline||"";
 $("m_estimate").value=t.estimate;
 $("m_progress").value=t.progress;
 $("m_memo").value=t.memo||"";
+
 $("modal").style.display="block";
 }
 
 function saveModal(){
 let t=tasks.find(x=>x.id==currentId);
+
 t.name=$("m_name").value;
 t.priority=$("m_priority").value;
 t.deadline=$("m_deadline").value;
 t.estimate=+$("m_estimate").value;
 t.progress=+$("m_progress").value;
 t.memo=$("m_memo").value;
+
 if(t.progress>=100) t.status="完了";
+
 closeModal();
 save();
 }
 
 function closeModal(){ $("modal").style.display="none"; }
+
+document.addEventListener("keydown",e=>{
+if(e.key==="Escape") closeModal();
+});
 
 /* 操作 */
 function toggleWait(id){
@@ -368,6 +402,7 @@ let t=tasks.find(x=>x.id==id);
 t.status=t.status==="待機"?"進行中":"待機";
 save();
 }
+
 function del(id){ tasks=tasks.filter(t=>t.id!=id); save(); }
 function save(){ localStorage.setItem("tasks",JSON.stringify(tasks)); render(); }
 function toggleDone(){ showDone=!showDone; render(); }
@@ -382,7 +417,7 @@ if(s==="進行中" && t.progress===0) t.progress=10;
 save();
 }
 
-/* その他 */
+/* utility */
 function copyReport(){
 let rows=[["タスク","優先","状態","期限","進捗"]];
 tasks.forEach(t=>{
@@ -414,7 +449,5 @@ $("btnBoard").onclick=()=>{$("list").style.display="none";$("board").style.displ
 $("btnList").click();
 render();
 </script>
-
 </body>
 </html>
-
