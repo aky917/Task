@@ -279,44 +279,75 @@ save();
 /* スコア */
 function score(t){
   const now = new Date();
+  const DAY = 86400000;
   const p = {高:1.0, 中:0.7, 低:0.4};
 
-  let days = (safeDate(t.deadline)-now)/86400000;
-  let remain = t.estimate*(1-t.progress/100);
+  const hasDeadline = !!t.deadline;
 
-  let noDeadline = !t.deadline;
+  let days = (safeDate(t.deadline) - now) / DAY;
+  let remain = t.estimate * (1 - t.progress / 100);
 
-  // 緊急度
-  let urgency = noDeadline
-    ? 0.05
-    : (days <= 0 ? 1.0 : 1 / (days + 1));
+  /* =========================
+     ① レイヤー分離（最重要）
+  ========================= */
+  let layer = hasDeadline ? 100 : 0;
+  // ← ここで完全に別世界
 
-  // リスク
+  /* =========================
+     ② 締切タスク評価
+  ========================= */
+  let urgency = hasDeadline
+    ? (days <= 0 ? 3.0 : 1 / (days + 0.3))
+    : 0;
+
   let capacity = days * DAY_HOURS;
-  let risk = noDeadline
-    ? 0
-    : (capacity <= 0 ? 1 : Math.min(1, remain / capacity));
 
-  // 進行中ボーナス
-  let momentum = t.progress > 0 ? 0.3 : 0;
+  let risk = hasDeadline
+    ? (capacity <= 0
+        ? 3.0
+        : Math.min(3.0, remain / (capacity * 0.8)))
+    : 0;
 
-  // 軽さ
-  let quick = 1 / (remain + 0.5);
+  /* =========================
+     ③ 期限なし内ランキング
+  ========================= */
+  let noDeadline = 0;
 
-  // 優先
-  let priority = p[t.priority];
+  if(!hasDeadline){
+    if(t.status === "待機"){
+      noDeadline = 2.0;   // 待機上位
+    }else{
+      noDeadline = 1.0;   // バックログ
+    }
+  }
 
-  // ✅ 期限なし補正（重要）
-  let backlogBoost = noDeadline && t.priority === "高" ? 0.25 : 0;
+  /* =========================
+     ④ 補助要素
+  ========================= */
+  let momentum = t.progress > 0 ? 0.4 : 0;
+  let quick = 1 / (remain + 1);
+  let priority = p[t.priority] * 0.3;
+  let heavyGuard = remain > 5 ? 0.3 : 0;
 
-  return (priority * 0.4)
-       + (urgency * 0.8)
-       + (risk * 1.2)
-       + (momentum * 0.3)
-       + (quick * 0.3)
-       + backlogBoost;
+  /* =========================
+     ⑤ 超詰み防止
+  ========================= */
+  if(hasDeadline && remain > days * DAY_HOURS * 1.5){
+    return 9999;
+  }
+
+  /* =========================
+     合計
+  ========================= */
+  return layer
+       + urgency
+       + risk
+       + noDeadline
+       + momentum
+       + quick * 0.3
+       + priority
+       + heavyGuard;
 }
-
   
 /* 並び */
 function sortTasks(){
