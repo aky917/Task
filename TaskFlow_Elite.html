@@ -276,86 +276,26 @@ save();
 };
 
   
-/* スコア */function score(t){
+/* スコア */
+function score(t){
   const now = new Date();
-  const DAY = 86400000;
   const p = {高:1.0, 中:0.7, 低:0.4};
 
-  const hasDeadline = !!t.deadline;
+  let days = (safeDate(t.deadline)-now)/86400000;
+  let remain = t.estimate*(1-t.progress/100);
 
-  let days = (safeDate(t.deadline) - now) / DAY;
-  let remain = t.estimate * (1 - t.progress / 100);
+  let noDeadline = !t.deadline;
 
-  /* =========================
-     ① 緊急度（最重要）
-  ========================= */
-  let urgency = hasDeadline
-    ? (days <= 0 ? 2.5 : 1 / (days + 0.3))
-    : 0.02;
+  // 緊急度
+  let urgency = noDeadline
+    ? 0.05
+    : (days <= 0 ? 1.0 : 1 / (days + 1));
 
-  /* =========================
-     ② 破綻リスク（最重要）
-     → 重いタスクを放置すると浮上
-  ========================= */
+  // リスク
   let capacity = days * DAY_HOURS;
-
-  let risk = hasDeadline
-    ? (capacity <= 0
-        ? 2.5
-        : Math.min(2.5, remain / (capacity * 0.8))) // 少し早めに警告
-    : 0;
-
-  /* =========================
-     ③ 待機・バックログ階層
-  ========================= */
-  let backlogLayer = 0;
-
-  if(!hasDeadline){
-    if(t.status === "待機"){
-      backlogLayer = 0.6;   // 待機は上
-    }else{
-      backlogLayer = 0.2;   // 完全バックログ
-    }
-  }
-
-  /* =========================
-     ④ 進行中ボーナス
-  ========================= */
-  let momentum = t.progress > 0 ? 0.4 : 0;
-
-  /* =========================
-     ⑤ 軽さ（弱め）
-  ========================= */
-  let quick = 1 / (remain + 1);
-
-  /* =========================
-     ⑥ 優先度（補助レベル）
-  ========================= */
-  let priority = p[t.priority] * 0.3;
-
-  /* =========================
-     ⑦ 重いタスクの埋もれ防止
-  ========================= */
-  let heavyGuard = remain > 5 ? 0.3 : 0;
-
-  /* =========================
-     ⑧ 超詰み防止（強制浮上）
-  ========================= */
-  if(hasDeadline && remain > days * DAY_HOURS * 1.5){
-    return 999;
-  }
-
-  /* =========================
-     合計
-  ========================= */
-  return urgency
-       + risk
-       + backlogLayer
-       + momentum
-       + quick * 0.3
-       + priority
-       + heavyGuard;
-}
+  let risk = noDeadline
+    ? 0
+    : (capacity <= 0 ? 1 : Math.min(1, remain / capacity));
 
   // 進行中ボーナス
   let momentum = t.progress > 0 ? 0.3 : 0;
@@ -652,4 +592,3 @@ render();
   
 </body>
 </html>
-
