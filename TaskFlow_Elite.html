@@ -165,6 +165,20 @@ th:nth-child(7), td:nth-child(7) { width: 7%; text-align: right; }
 .dl-soon    { color: var(--yellow); }
 .dl-normal  { color: var(--muted); }
 .dl-none    { color: var(--muted2); }
+
+/* Simulation panel */
+.sim-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+.sim-row { display: flex; justify-content: space-between; align-items: baseline; padding: 3px 0; font-size: 11px; }
+.sim-val { font-family: var(--mono); font-size: 11px; color: var(--accent); }
+.sim-val.warn { color: var(--yellow); }
+.sim-val.danger { color: var(--red); }
+.sim-divider { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
+.sim-task-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 6px; border-radius: 5px; font-size: 10px; margin-bottom: 3px; background: #2d1515; color: var(--red); }
+.sim-task-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
+
+/* Archive */
+.archive-btn { background: transparent; border: none; color: var(--muted2); cursor: pointer; font-size: 10px; padding: 0 4px; transition: color .15s; }
+.archive-btn:hover { color: var(--accent); }
 .prog-wrap { display: flex; align-items: center; gap: 8px; }
 .prog-bar { flex: 1; height: 4px; background: var(--surface2); border-radius: 100px; overflow: hidden; }
 .prog-fill { height: 100%; border-radius: 100px; background: var(--accent); transition: width .3s; }
@@ -293,6 +307,12 @@ tr:hover .row-actions { opacity: 1; }
       <div style="font-size:10px;color:var(--muted);margin-top:8px;padding:0 2px">日付クリックで時間を上書き</div>
     </div>
 
+    <!-- Simulation -->
+    <div class="sidebar-section">
+      <div class="sidebar-label">工数シミュレーション</div>
+      <div class="sim-card" id="sim-card"></div>
+    </div>
+
     <!-- View tabs -->
     <div class="sidebar-section">
       <div class="sidebar-label">表示</div>
@@ -326,6 +346,11 @@ tr:hover .row-actions { opacity: 1; }
         <span class="done-chevron" id="done-chevron">›</span>
         完了済み
         <span class="done-count" id="doneCount">0</span>
+        <span id="archived-toggle-wrap" style="display:none;margin-left:6px">
+          <button class="archive-btn" onclick="toggleArchived();event.stopPropagation()" id="archived-toggle-btn">
+            アーカイブ (<span id="archived-count">0</span>)
+          </button>
+        </span>
       </div>
       <div id="done-wrap" style="display:none">
         <table><tbody id="done-table"></tbody></table>
@@ -577,33 +602,77 @@ function progClass(t) {
 }
 
 // ============================================================
-//  Relative deadline
+//  Relative deadline — 常に稼働日ベース
 // ============================================================
+function countWorkDays(fromStr, toStr) {
+  // fromStr の翌日 〜 toStr まで稼働日を数える（fromStr当日は含まない）
+  let count = 0;
+  let cur = datePlusN(fromStr, 1);
+  const limit = 3000;
+  let i = 0;
+  while (cur <= toStr && i++ < limit) {
+    if (hoursForDate(cur) > 0) count++;
+    cur = datePlusN(cur, 1);
+  }
+  return count;
+}
+
 function relDeadline(deadline) {
   if (!deadline) return { text: "—", cls: "dl-none" };
   const today = todayJST();
+  const diffCalDays = Math.round((parseDate(deadline) - parseDate(today)) / 86400000);
+
+  // 超過
+  if (diffCalDays < 0) {
+    const overWorkDays = countWorkDays(deadline, datePlusN(today, -1));
+    return { text: `稼働${overWorkDays}日超過`, cls: "dl-overdue" };
+  }
+
+  // 今日
+  if (diffCalDays === 0) return { text: "今日", cls: "dl-today" };
+
+  // 明日かどうか: 今日の翌日 = deadline かつ稼働日
   const tmr = datePlusN(today, 1);
-  const diffDays = Math.round((parseDate(deadline) - parseDate(today)) / 86400000);
-  if (deadline === today) return { text: "今日", cls: "dl-today" };
-  if (deadline === tmr)   return { text: "明日", cls: "dl-soon" };
-  if (diffDays < 0)       return { text: `${Math.abs(diffDays)}日超過`, cls: "dl-overdue" };
-  if (diffDays <= 3)      return { text: `${diffDays}日後`, cls: "dl-soon" };
-  if (diffDays <= 14)     return { text: `${diffDays}日後`, cls: "dl-normal" };
-  const weeks = Math.round(diffDays / 7);
-  if (diffDays < 60)      return { text: `${weeks}週間後`, cls: "dl-normal" };
-  const months = Math.round(diffDays / 30);
-  return { text: `${months}ヶ月後`, cls: "dl-normal" };
+  if (deadline === tmr && hoursForDate(tmr) > 0) return { text: "明日", cls: "dl-soon" };
+
+  // 稼働日カウント（今日の翌日〜期限日）
+  const workDays = countWorkDays(today, deadline);
+
+  if (workDays === 0)  return { text: "稼働日なし", cls: "dl-overdue" };
+  if (workDays <= 3)   return { text: `稼働${workDays}日後`, cls: "dl-soon" };
+  if (workDays <= 10)  return { text: `稼働${workDays}日後`, cls: "dl-normal" };
+
+  // 稼働日が多い場合は週・月に丸める（目安として暦日ベースで補助表示）
+  if (workDays <= 30) {
+    const calWeeks = Math.round(diffCalDays / 7);
+    return { text: `約${calWeeks}週間後 (稼働${workDays}日)`, cls: "dl-normal" };
+  }
+  const calMonths = Math.round(diffCalDays / 30);
+  return { text: `約${calMonths}ヶ月後 (稼働${workDays}日)`, cls: "dl-normal" };
 }
 
 // ============================================================
-//  Auto status
+//  Auto status + completedAt timestamp
 // ============================================================
 function autoStatus() {
   tasks.forEach(t => {
-    if (t.progress >= 100) t.status = "完了";
-    else if (t.status !== "待機") t.status = t.progress > 0 ? "進行中" : "未着手";
+    if (t.progress >= 100) {
+      t.status = "完了";
+      if (!t.completedAt) t.completedAt = todayJST();
+    } else {
+      t.completedAt = null;
+      if (t.status !== "待機") t.status = t.progress > 0 ? "進行中" : "未着手";
+    }
   });
 }
+
+// 7日以上前に完了 = アーカイブ
+function isArchived(t) {
+  if (!t.completedAt) return false;
+  return Math.round((parseDate(todayJST()) - parseDate(t.completedAt)) / 86400000) >= 7;
+}
+
+let showArchived = false;
 
 // ============================================================
 //  Save
@@ -799,7 +868,10 @@ function render() {
   $("cnt-doing").textContent = $("k-doing").children.length;
   $("cnt-wait").textContent  = $("k-waiting").children.length;
   $("cnt-done").textContent  = $("k-doneK").children.length;
+  const archivedNum = tasks.filter(t => t.progress >= 100 && isArchived(t)).length;
   $("doneCount").textContent = doneNum;
+  $("archived-count").textContent = archivedNum;
+  $("archived-toggle-wrap").style.display = archivedNum > 0 ? "inline" : "none";
   $("done-wrap").style.display = showDone ? "block" : "none";
 
   if (tasks.filter(t => t.progress < 100).length === 0) {
@@ -808,6 +880,7 @@ function render() {
 
   renderToday();
   renderCalendar();
+  renderSim();
 }
 
 // ============================================================
@@ -1101,6 +1174,97 @@ function importTasks(e) {
     } catch { showToast("ファイル形式エラー"); }
   };
   reader.readAsText(f);
+}
+
+
+// ============================================================
+//  Archive toggle
+// ============================================================
+function toggleArchived() {
+  showArchived = !showArchived;
+  const btn = $("archived-toggle-btn");
+  if (btn) btn.style.color = showArchived ? "var(--accent)" : "";
+  render();
+}
+
+// ============================================================
+//  Simulation panel
+// ============================================================
+function renderSim() {
+  const el = $("sim-card");
+  if (!el) return;
+  const today = todayJST();
+  const active = tasks.filter(t => t.progress < 100);
+  const totalRemain = active.reduce((s, t) => s + t.estimate * (1 - t.progress / 100), 0);
+
+  // 全タスク完了に何稼働日かかるか（今日から順に工数を消化）
+  let simH = totalRemain;
+  let simDay = today;
+  let workDaysNeeded = 0;
+  const limit = 1000;
+  let i = 0;
+  while (simH > 0 && i++ < limit) {
+    const h = hoursForDate(simDay);
+    if (h > 0) { simH -= h; workDaysNeeded++; }
+    simDay = datePlusN(simDay, 1);
+  }
+
+  // 期限オーバーしているタスク or 稼働日が足りないタスク
+  const overTasks = active.filter(t => {
+    if (!t.deadline) return false;
+    if (t.deadline < today) return true;
+    const workH = workHoursUntil(today, t.deadline);
+    const remain = t.estimate * (1 - t.progress / 100);
+    return remain > workH;
+  }).sort((a, b) => score(b) - score(a));
+
+  el.innerHTML = "";
+
+  // Row helper
+  function row(label, val, cls) {
+    const div = document.createElement("div"); div.className = "sim-row";
+    const l = document.createElement("span"); l.textContent = label; l.style.color = "var(--muted)";
+    const v = document.createElement("span"); v.className = "sim-val" + (cls ? " " + cls : ""); v.textContent = val;
+    div.appendChild(l); div.appendChild(v); el.appendChild(div);
+  }
+
+  row("残工数合計", totalRemain.toFixed(1) + "h");
+  row("完了まで", workDaysNeeded > 0 ? `稼働${workDaysNeeded}日` : "—", workDaysNeeded > 10 ? "warn" : "");
+
+  if (overTasks.length > 0) {
+    const hr = document.createElement("hr"); hr.className = "sim-divider"; el.appendChild(hr);
+    const lbl = document.createElement("div");
+    lbl.style.cssText = "font-size:10px;font-weight:600;color:var(--red);letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px";
+    lbl.textContent = `工数超過 ${overTasks.length}件`;
+    el.appendChild(lbl);
+
+    overTasks.slice(0, 5).forEach(t => {
+      const today2 = todayJST();
+      const workH = t.deadline >= today2 ? workHoursUntil(today2, t.deadline) : 0;
+      const remain = t.estimate * (1 - t.progress / 100);
+      const over = (remain - workH).toFixed(1);
+
+      const row2 = document.createElement("div"); row2.className = "sim-task-row";
+      const nm = document.createElement("span"); nm.className = "sim-task-name"; nm.textContent = t.name;
+      const ov = document.createElement("span"); ov.style.cssText = "font-family:var(--mono);font-size:10px;flex-shrink:0;margin-left:6px";
+      ov.textContent = "+" + over + "h";
+      row2.appendChild(nm); row2.appendChild(ov);
+      el.appendChild(row2);
+    });
+
+    if (overTasks.length > 5) {
+      const more = document.createElement("div");
+      more.style.cssText = "font-size:10px;color:var(--muted);text-align:right;margin-top:4px";
+      more.textContent = `他 ${overTasks.length - 5} 件`;
+      el.appendChild(more);
+    }
+  } else {
+    const hr = document.createElement("hr"); hr.className = "sim-divider"; el.appendChild(hr);
+    const ok = document.createElement("div");
+    ok.style.cssText = "font-size:11px;color:#4ADE80;text-align:center;padding:4px";
+    ok.textContent = "⬤ 全タスク期限内";
+    el.appendChild(ok);
+  }
 }
 
 // ============================================================
