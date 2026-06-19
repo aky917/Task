@@ -398,6 +398,25 @@ tr:hover .row-actions { opacity: 1; }
       <div class="field"><label>メモ</label><input id="memo" placeholder="任意"></div>
       <button id="addBtn">＋ 追加</button>
     </div>
+    <div id="deadline-hint" style="display:none;margin:0 0 10px;padding:0 2px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <!-- 影響なしプラン -->
+        <div id="hint-safe" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">
+          <div style="font-size:10px;font-weight:600;color:var(--green);letter-spacing:.04em;margin-bottom:6px;">🟢 他タスクに影響なし</div>
+          <div id="hint-safe-date" style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:3px;"></div>
+          <div id="hint-safe-sub" style="font-size:10px;color:var(--muted);line-height:1.5;margin-bottom:8px;"></div>
+          <button onclick="applyHintDate('safe')" style="font-size:11px;color:var(--accent);background:rgba(99,179,237,.12);border:none;border-radius:6px;padding:3px 10px;cursor:pointer;">この日付を設定</button>
+        </div>
+        <!-- 割り込みプラン -->
+        <div id="hint-fast" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">
+          <div style="font-size:10px;font-weight:600;color:#f6ad55;letter-spacing:.04em;margin-bottom:6px;">⚡ 最優先で割り込み</div>
+          <div id="hint-fast-date" style="font-size:14px;font-weight:600;color:#f6ad55;margin-bottom:3px;"></div>
+          <div id="hint-fast-sub" style="font-size:10px;color:var(--muted);line-height:1.5;margin-bottom:4px;"></div>
+          <div id="hint-fast-impacts" style="margin-bottom:8px;"></div>
+          <button onclick="applyHintDate('fast')" style="font-size:11px;color:#f6ad55;background:rgba(246,173,85,.12);border:none;border-radius:6px;padding:3px 10px;cursor:pointer;">この日付を設定</button>
+        </div>
+      </div>
+    </div>
 
     <div id="list-view" class="table-wrap">
       <table>
@@ -888,8 +907,109 @@ function toggleSidebar() {
 }
 
 // ============================================================
-//  Add task
+//  Deadline hint — スケジュールシミュレーション
 // ============================================================
+let _hintSafeDate = null, _hintFastDate = null;
+
+function addWorkHours(fromStr, hours) {
+  // fromStr の翌日から hours を消化できる最初の日付を返す
+  let cur = datePlusN(fromStr, 1);
+  let remaining = hours;
+  const limit = 500;
+  let i = 0;
+  while (remaining > 0 && i++ < limit) {
+    remaining -= hoursForDate(cur);
+    if (remaining > 0) cur = datePlusN(cur, 1);
+  }
+  return cur;
+}
+
+function calcHint() {
+  const estimate = parseFloat($("estimate").value);
+  if (!estimate || estimate <= 0) { $("deadline-hint").style.display = "none"; return; }
+
+  const today = todayJST();
+  const active = tasks.filter(t => t.progress < 100).sort((a, b) => score(b) - score(a));
+
+  // ── 影響なしプラン：既存タスクの隙間に入れる ──
+  // 既存タスクを順番に消化したときに空く時間を積算して new task が入るのを待つ
+  let safeDate;
+  {
+    let cur = today;
+    let slotRemain = hoursForDate(cur); // 今日の残稼働（簡易：全稼働時間を使用）
+    // 既存タスクを消化して隙間を計算
+    let backlog = active.reduce((s, t) => s + t.estimate * (1 - t.progress / 100), 0);
+    safeDate = addWorkHours(today, backlog + estimate);
+  }
+
+  // ── 割り込みプラン：最優先で今すぐ着手 ──
+  const fastDate = addWorkHours(today, estimate);
+
+  // 割り込み影響：期限があるタスクで fastDate より前に完了見込みだったものを抽出
+  const impacts = [];
+  {
+    let consumed = 0;
+    for (const t of active) {
+      const rem = t.estimate * (1 - t.progress / 100);
+      // 割り込みなし完了予定日
+      const origDate = addWorkHours(today, consumed + rem);
+      consumed += rem;
+      // 割り込みあり完了予定日（estimate分後ろにずれる）
+      const newDate = addWorkHours(today, estimate + consumed);
+      if (t.deadline && origDate !== newDate) {
+        const delayDays = Math.round((parseDate(newDate) - parseDate(origDate)) / 86400000);
+        if (delayDays > 0) impacts.push({ name: t.name, delay: delayDays });
+      }
+    }
+  }
+
+  _hintSafeDate = safeDate;
+  _hintFastDate = fastDate;
+
+  // 表示更新
+  $("hint-safe-date").textContent = safeDate;
+  $("hint-safe-sub").textContent = `既存タスクをこなしながら消化。他タスクはずれません。`;
+
+  $("hint-fast-date").textContent = fastDate;
+  $("hint-fast-sub").textContent = `最短完了。ただし直近タスクが後ろにずれます。`;
+
+  const impactEl = $("hint-fast-impacts");
+  impactEl.innerHTML = "";
+  if (impacts.length === 0) {
+    impactEl.innerHTML = `<div style="font-size:10px;color:var(--green);">他タスクへの影響なし</div>`;
+  } else {
+    const show = impacts.slice(0, 3);
+    show.forEach(({ name, delay }) => {
+      const row = document.createElement("div");
+      row.style.cssText = "display:flex;justify-content:space-between;font-size:10px;color:var(--muted);padding:2px 0;border-top:1px solid var(--border);";
+      row.innerHTML = `<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(name)}</span><span style="color:#f6ad55;font-weight:600;margin-left:8px;flex-shrink:0;">+${delay}日</span>`;
+      impactEl.appendChild(row);
+    });
+    if (impacts.length > 3) {
+      const more = document.createElement("div");
+      more.style.cssText = "font-size:10px;color:var(--muted);padding-top:3px;";
+      more.textContent = `他 ${impacts.length - 3} 件にも影響あり`;
+      impactEl.appendChild(more);
+    }
+  }
+
+  $("deadline-hint").style.display = "block";
+}
+
+function applyHintDate(plan) {
+  const date = plan === "safe" ? _hintSafeDate : _hintFastDate;
+  if (date) $("deadline").value = date;
+}
+
+// 工数・優先度の変更でヒントを更新
+["estimate", "priority"].forEach(id => {
+  $(id).addEventListener("input", calcHint);
+  $(id).addEventListener("change", calcHint);
+});
+// タスク名をクリアしたらヒントも閉じる
+$("name").addEventListener("input", () => {
+  if (!$("name").value.trim()) $("deadline-hint").style.display = "none";
+});
 $("addBtn").onclick = () => {
   const n = $("name").value.trim();
   if (!n) return;
