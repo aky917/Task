@@ -1432,7 +1432,8 @@ function downloadReport() {
     const dl = relDeadline(t.deadline);
     ctx.fillStyle = dl.cls === "dl-overdue" ? "#c0392b" : dl.cls === "dl-today" ? "#e67e22" : dl.cls === "dl-soon" ? "#d4ac0d" : "#999";
     ctx.font = "11px 'Inter', sans-serif";
-    ctx.fillText(dl.text, 80, y + 44);
+    const dlText = t.deadline ? `${dl.text}  (${t.deadline})` : dl.text;
+    ctx.fillText(dlText, 80, y + 44);
 
     // progress bar
     const barX = W - 64 - 120, barY = y + 20, barLen = 110, barH2 = 5;
