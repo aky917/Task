@@ -2048,70 +2048,184 @@ function downloadReport() {
   const canvas = document.createElement("canvas");
   const DPR = 2; canvas.width = W * DPR; canvas.height = H * DPR;
   const ctx = canvas.getContext("2d"); ctx.scale(DPR, DPR);
-  ctx.fillStyle = "#0F1117"; ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = "#161820"; ctx.fillRect(0, 0, W, HEADER_H - 16);
-  ctx.fillStyle = "#E2E4F0"; ctx.font = "600 20px 'Inter', sans-serif"; ctx.fillText("週次タスクレポート", 32, 44);
-  ctx.fillStyle = "#6B7280"; ctx.font = "13px 'Inter', sans-serif";
+
+  // ── ライトテーマ カラーパレット ──────────────────────────
+  const C = {
+    bg:        "#FFFFFF",
+    headerBg:  "#F8F9FC",
+    border:    "#E2E8F0",
+    text:      "#1E293B",
+    textSub:   "#64748B",
+    textMuted: "#94A3B8",
+    cardBg:    "#F8FAFF",
+    cardBorder:"#E2E8F0",
+    accent:    "#4F46E5",
+    accentBg:  "#EEF2FF",
+    red:       "#DC2626",
+    redBg:     "#FEF2F2",
+    redBorder: "#FECACA",
+    orange:    "#EA580C",
+    orangeBg:  "#FFF7ED",
+    yellow:    "#D97706",
+    yellowBg:  "#FFFBEB",
+    green:     "#16A34A",
+    greenBg:   "#F0FDF4",
+    greenBorder:"#BBF7D0",
+    progTrack: "#E2E8F0",
+  };
+
+  // 全体背景
+  ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+
+  // ── ヘッダー ────────────────────────────────────────────
+  ctx.fillStyle = C.headerBg; ctx.fillRect(0, 0, W, HEADER_H - 16);
+  // ヘッダー下線
+  ctx.fillStyle = C.border; ctx.fillRect(0, HEADER_H - 17, W, 1);
+  // アクセントライン（左端）
+  ctx.fillStyle = C.accent; ctx.fillRect(0, 0, 4, HEADER_H - 16);
+
+  ctx.fillStyle = C.text;
+  ctx.font = "600 20px 'Hiragino Sans', 'Yu Gothic', sans-serif";
+  ctx.fillText("週次タスクレポート", 24, 42);
+
   const jst = jstNow();
-  ctx.fillText(jst.toLocaleDateString("ja-JP",{year:"numeric",month:"long",day:"numeric",weekday:"short"}) + " JST", 32, 68);
-  const stats = [
-    { label:"進行中", val: active.length + "件" },
-    { label:"完了（過去7日間）", val: recentDone.length + "件" },
-    { label:"残工数合計", val: totalRemain.toFixed(1) + "h" },
-    { label:"遅延・危険", val: dangerCount + "件", danger: dangerCount > 0 },
-  ];
+  ctx.fillStyle = C.textSub;
+  ctx.font = "13px 'Hiragino Sans', 'Yu Gothic', sans-serif";
+  ctx.fillText(jst.toLocaleDateString("ja-JP",{year:"numeric",month:"long",day:"numeric",weekday:"short"}), 24, 66);
+
+  // 右上：危険件数バッジ
+  if (dangerCount > 0) {
+    const badgeTxt = `⚠ 要注意 ${dangerCount}件`;
+    ctx.font = "600 12px 'Hiragino Sans', 'Yu Gothic', sans-serif";
+    const bw = ctx.measureText(badgeTxt).width + 20;
+    roundRect(ctx, W - 32 - bw, 28, bw, 24, 6, C.redBg, C.redBorder);
+    ctx.fillStyle = C.red; ctx.fillText(badgeTxt, W - 32 - bw + 10, 44);
+  }
+
+  // ── サマリーカード 4枚 ──────────────────────────────────
   const statY = HEADER_H;
-  const statW = (W - 64 - 24) / 4;
+  const statW = (W - 48 - 18) / 4;
+  const stats = [
+    { label:"進行中タスク", val: active.length + "件",            color: C.accent,  bgColor: C.accentBg,  border: "#C7D2FE" },
+    { label:"完了（7日間）",  val: recentDone.length + "件",       color: C.green,   bgColor: C.greenBg,   border: C.greenBorder },
+    { label:"残工数合計",     val: totalRemain.toFixed(1) + "h",   color: C.text,    bgColor: C.cardBg,    border: C.cardBorder },
+    { label:"遅延・要注意",   val: dangerCount + "件",             color: dangerCount > 0 ? C.red : C.textMuted, bgColor: dangerCount > 0 ? C.redBg : C.cardBg, border: dangerCount > 0 ? C.redBorder : C.cardBorder },
+  ];
   stats.forEach((s, i) => {
-    const x = 32 + i * (statW + 8);
-    roundRect(ctx, x, statY, statW, 68, 8, "#1A1D2E", null);
-    ctx.fillStyle = "#4B5268"; ctx.font = "11px 'Inter', sans-serif"; ctx.fillText(s.label, x + 12, statY + 22);
-    ctx.fillStyle = s.danger ? "#F87171" : "#A5B4FC"; ctx.font = "600 22px 'Inter', sans-serif"; ctx.fillText(s.val, x + 12, statY + 52);
+    const x = 24 + i * (statW + 6);
+    roundRect(ctx, x, statY + 8, statW, 64, 8, s.bgColor, s.border);
+    ctx.fillStyle = C.textSub;
+    ctx.font = "11px 'Hiragino Sans', 'Yu Gothic', sans-serif";
+    ctx.fillText(s.label, x + 12, statY + 28);
+    ctx.fillStyle = s.color;
+    ctx.font = "700 22px 'Hiragino Sans', 'Yu Gothic', sans-serif";
+    ctx.fillText(s.val, x + 12, statY + 56);
   });
+
+  // ── 進行中タスクセクション ───────────────────────────────
   const secY = statY + STAT_H;
-  ctx.fillStyle = "#4B5268"; ctx.font = "600 11px 'Inter', sans-serif"; ctx.fillText("進行中タスク", 32, secY + 20);
+  ctx.fillStyle = C.textSub;
+  ctx.font = "600 11px 'Hiragino Sans', 'Yu Gothic', sans-serif";
+  ctx.fillText("▸  進行中タスク", 24, secY + 20);
+
   active.forEach((t, i) => {
     const y = secY + SEC_H + i * CARD_H;
     const si = statusInfo(t);
     const remain = t.estimate * (1 - t.progress / 100);
-    roundRect(ctx, 32, y, W - 64, CARD_H - 8, 10, "#1A1D2E", "#2A2D3A");
-    const barColor = si.cls === "s-danger" ? "#F87171" : si.cls === "s-warn" ? "#FCD34D" : si.cls === "s-caution" ? "#FCD34D" : "#818CF8";
-    roundRect(ctx, 32, y, 4, CARD_H - 8, 2, barColor, null);
-    const pColor = t.priority === "高" ? { bg:"#2D1515", text:"#F87171" } : t.priority === "中" ? { bg:"#141D35", text:"#818CF8" } : { bg:"#1E2133", text:"#A5B4FC" };
-    const badgeW = 28;
-    roundRect(ctx, 44, y + 14, badgeW, 18, 9, pColor.bg, null);
-    ctx.fillStyle = pColor.text; ctx.font = "600 10px 'Inter', sans-serif"; ctx.textAlign = "center";
-    ctx.fillText(t.priority, 44 + badgeW/2, y + 27); ctx.textAlign = "left";
-    ctx.fillStyle = "#E2E4F0"; ctx.font = "500 13px 'Inter', sans-serif";
-    const maxNameW = W - 64 - 130 - 50; ctx.fillText(truncate(ctx, t.name, maxNameW), 80, y + 26);
+
+    // カード背景
+    roundRect(ctx, 24, y, W - 48, CARD_H - 8, 8, C.cardBg, C.cardBorder);
+
+    // ステータス左ライン
+    const lineColor =
+      si.cls === "s-danger"  ? C.red :
+      si.cls === "s-warn"    ? C.orange :
+      si.cls === "s-caution" ? C.yellow : C.accent;
+    roundRect(ctx, 24, y, 4, CARD_H - 8, 2, lineColor, null);
+
+    // 優先度バッジ
+    const pText = t.priority;
+    const pColor =
+      t.priority === "高" ? { bg: C.redBg,    text: C.red,    border: C.redBorder } :
+      t.priority === "中" ? { bg: C.accentBg, text: C.accent, border: "#C7D2FE"   } :
+                            { bg: C.cardBg,   text: C.textSub,border: C.cardBorder };
+    ctx.font = "600 10px 'Hiragino Sans', 'Yu Gothic', sans-serif";
+    const badgeW = ctx.measureText(pText).width + 14;
+    roundRect(ctx, 36, y + 13, badgeW, 17, 4, pColor.bg, pColor.border);
+    ctx.fillStyle = pColor.text;
+    ctx.font = "600 10px 'Hiragino Sans', 'Yu Gothic', sans-serif";
+    ctx.fillText(pText, 36 + 7, y + 25);
+
+    // タスク名
+    const nameX = 36 + badgeW + 8;
+    const maxNameW = W - nameX - 48 - 140;
+    ctx.fillStyle = C.text;
+    ctx.font = "500 13px 'Hiragino Sans', 'Yu Gothic', sans-serif";
+    ctx.fillText(truncate(ctx, t.name, maxNameW), nameX, y + 26);
+
+    // 期限
     const dl = relDeadline(t.deadline);
-    ctx.fillStyle = dl.cls === "dl-overdue" ? "#F87171" : dl.cls === "dl-today" ? "#FCD34D" : dl.cls === "dl-soon" ? "#FCD34D" : "#4B5268";
-    ctx.font = "11px 'Inter', sans-serif";
-    const dlText = t.deadline ? `${dl.text}  (${t.deadline})` : dl.text;
-    ctx.fillText(dlText, 80, y + 44);
-    const barX = W - 64 - 120, barY = y + 20, barLen = 110, barH2 = 5;
-    roundRect(ctx, barX, barY, barLen, barH2, 3, "#2A2D3A", null);
-    const fillColor = si.cls === "s-danger" ? "#F87171" : si.cls === "s-warn" ? "#FCD34D" : "#4F46E5";
-    roundRect(ctx, barX, barY, Math.max(4, barLen * t.progress / 100), barH2, 3, fillColor, null);
-    ctx.fillStyle = "#4B5268"; ctx.font = "11px 'Inter', sans-serif";
-    ctx.fillText(`${t.progress}%  ${remain.toFixed(1)}h残`, barX, barY + 20);
+    const dlColor =
+      dl.cls === "dl-overdue" ? C.red :
+      dl.cls === "dl-today"   ? C.orange :
+      dl.cls === "dl-soon"    ? C.yellow : C.textMuted;
+    ctx.fillStyle = dlColor;
+    ctx.font = "11px 'Hiragino Sans', 'Yu Gothic', sans-serif";
+    const dlText = t.deadline ? `${dl.text}（${t.deadline}）` : dl.text;
+    ctx.fillText(dlText, nameX, y + 44);
+
+    // 進捗バー
+    const barX = W - 48 - 130, barY2 = y + 18, barLen = 120, barH2 = 6;
+    roundRect(ctx, barX, barY2, barLen, barH2, 3, C.progTrack, null);
+    const fillColor =
+      si.cls === "s-danger"  ? C.red :
+      si.cls === "s-warn"    ? C.orange :
+      si.cls === "s-caution" ? C.yellow : C.accent;
+    if (t.progress > 0) roundRect(ctx, barX, barY2, Math.max(6, barLen * t.progress / 100), barH2, 3, fillColor, null);
+
+    ctx.fillStyle = C.textSub;
+    ctx.font = "600 12px 'Hiragino Sans', 'Yu Gothic', sans-serif";
+    ctx.textAlign = "right";
+    ctx.fillText(`${t.progress}%`, barX + barLen, barY2 - 4);
+    ctx.textAlign = "left";
+    ctx.fillStyle = C.textMuted;
+    ctx.font = "10px 'Hiragino Sans', 'Yu Gothic', sans-serif";
+    ctx.fillText(`残 ${remain.toFixed(1)}h`, barX, barY2 + 20);
   });
+
+  // ── 完了タスクセクション ─────────────────────────────────
   if (recentDone.length > 0) {
     const doneSecY = secY + SEC_H + active.length * CARD_H + 16;
-    ctx.strokeStyle = "#2A2D3A"; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(32, doneSecY); ctx.lineTo(W-32, doneSecY); ctx.stroke();
-    ctx.fillStyle = "#4B5268"; ctx.font = "600 11px 'Inter', sans-serif"; ctx.fillText("完了（過去7日間）", 32, doneSecY + 20);
+    ctx.strokeStyle = C.border; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(24, doneSecY); ctx.lineTo(W - 24, doneSecY); ctx.stroke();
+    ctx.fillStyle = C.textSub;
+    ctx.font = "600 11px 'Hiragino Sans', 'Yu Gothic', sans-serif";
+    ctx.fillText("▸  完了（過去7日間）", 24, doneSecY + 20);
     recentDone.forEach((t, i) => {
       const y = doneSecY + SEC_H + i * 44;
-      roundRect(ctx, 32, y, W - 64, 36, 8, "#1A1D2E", null);
-      ctx.fillStyle = "#818CF8"; ctx.font = "12px 'Inter', sans-serif"; ctx.fillText("✓", 46, y + 23);
-      ctx.fillStyle = "#6B7280"; ctx.font = "12px 'Inter', sans-serif"; ctx.fillText(truncate(ctx, t.name, W - 200), 64, y + 23);
-      ctx.fillStyle = "#4B5268"; ctx.font = "11px 'Inter', sans-serif"; ctx.textAlign = "right";
-      ctx.fillText(t.completedAt || "", W - 40, y + 23); ctx.textAlign = "left";
+      roundRect(ctx, 24, y, W - 48, 36, 6, C.greenBg, C.greenBorder);
+      ctx.fillStyle = C.green;
+      ctx.font = "600 12px 'Hiragino Sans', 'Yu Gothic', sans-serif";
+      ctx.fillText("✓", 38, y + 23);
+      ctx.fillStyle = C.textSub;
+      ctx.font = "12px 'Hiragino Sans', 'Yu Gothic', sans-serif";
+      ctx.fillText(truncate(ctx, t.name, W - 200), 56, y + 23);
+      ctx.fillStyle = C.textMuted;
+      ctx.font = "11px 'Hiragino Sans', 'Yu Gothic', sans-serif";
+      ctx.textAlign = "right";
+      ctx.fillText(t.completedAt || "", W - 32, y + 23);
+      ctx.textAlign = "left";
     });
   }
-  ctx.fillStyle = "#2A2D3A"; ctx.fillRect(32, H - 24, W - 64, 1);
-  ctx.fillStyle = "#4B5268"; ctx.font = "11px 'Inter', sans-serif"; ctx.fillText("Generated by TaskFlow", 32, H - 10);
+
+  // ── フッター ────────────────────────────────────────────
+  ctx.fillStyle = C.border; ctx.fillRect(24, H - 28, W - 48, 1);
+  ctx.fillStyle = C.textMuted;
+  ctx.font = "10px 'Hiragino Sans', 'Yu Gothic', sans-serif";
+  ctx.fillText("Generated by TaskFlow", 24, H - 12);
+  ctx.textAlign = "right";
+  ctx.fillText("社外秘", W - 24, H - 12);
+  ctx.textAlign = "left";
   const a = document.createElement("a");
   a.href = canvas.toDataURL("image/png");
   a.download = "weekly-report-" + today + ".png";
